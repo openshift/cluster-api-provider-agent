@@ -22,7 +22,7 @@ import (
 	"github.com/openshift/hive/apis/hive/v1/agent"
 	"strings"
 
-	capiproviderv1alpha1 "github.com/eranco74/cluster-api-provider-agent/api/v1alpha1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/sirupsen/logrus"

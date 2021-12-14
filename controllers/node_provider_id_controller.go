@@ -21,7 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"time"
 
-	capiproviderv1alpha1 "github.com/eranco74/cluster-api-provider-agent/api/v1alpha1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"

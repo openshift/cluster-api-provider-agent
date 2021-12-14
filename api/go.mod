@@ -1,4 +1,4 @@
-module github.com/eranco74/cluster-api-provider-agent/api
+module github.com/openshift/cluster-api-provider-agent/api
 
 go 1.16
 

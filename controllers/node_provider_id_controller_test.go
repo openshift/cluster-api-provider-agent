@@ -3,7 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
-	capiproviderv1alpha1 "github.com/eranco74/cluster-api-provider-agent/api/v1alpha1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

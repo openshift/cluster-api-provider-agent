@@ -5,7 +5,7 @@ import (
 	"github.com/openshift/hive/apis/hive/v1/agent"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
-	capiproviderv1alpha1 "github.com/eranco74/cluster-api-provider-agent/api/v1alpha1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

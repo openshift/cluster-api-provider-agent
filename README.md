@@ -15,7 +15,7 @@ Add the agent provider to [clusterctl configuration file](https://cluster-api.si
 ```yaml
 providers:
   - name: "agent"
-    url: "https://github.com/eranco74/cluster-api-provider-agent/releases/latest/infrastructure-components.yaml"
+    url: "https://github.com/openshift/cluster-api-provider-agent/releases/latest/infrastructure-components.yaml"
     type: "InfrastructureProvider"
 ```
 Set up the provider:
