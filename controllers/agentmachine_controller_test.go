@@ -7,12 +7,12 @@ import (
 	"time"
 
 	ignitionapi "github.com/coreos/ignition/v2/config/v3_1/types"
-	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
 	aiv1beta1 "github.com/openshift/assisted-service/api/v1beta1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	v1 "github.com/openshift/custom-resource-status/conditions/v1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/sirupsen/logrus"

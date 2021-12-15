@@ -5,11 +5,11 @@ import (
 	"github.com/openshift/hive/apis/hive/v1/agent"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
-	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
