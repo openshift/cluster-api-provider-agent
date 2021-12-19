@@ -66,6 +66,10 @@ func (r *NodeProviderIDReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{RequeueAfter: defaultRequeue}, nil
 	}
 
+	if !agentMachine.Status.Ready {
+		return ctrl.Result{RequeueAfter: defaultRequeue}, nil
+	}
+
 	if err := r.setNodeProviderID(ctx, log, agentMachine); err != nil {
 		log.Infof("can't set node provider ID, error: %s", err)
 		return ctrl.Result{RequeueAfter: defaultRequeue}, nil
