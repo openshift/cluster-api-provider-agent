@@ -91,12 +91,16 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+
+lint: golint ## Run golangci-lint against code.
+	$(GOLINT) run -v ./...
+
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out -ginkgo.focus="$(FOCUS)" -ginkgo.v -ginkgo.skip="$(SKIP)"
 
 ##@ Build
 
-build: generate fmt vet ## Build manager binary.
+build: generate fmt vet lint ## Build manager binary.
 	go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -149,6 +153,10 @@ envtest: ## Download envtest-setup locally if necessary.
 MOCKGEN = $(shell pwd)/bin/mockgen
 mockgen: ## Download mockgen locally if necessary.
 	$(call go-get-tool,$(MOCKGEN),github.com/golang/mock/mockgen)
+
+GOLINT = $(shell pwd)/bin/golangci-lint
+golint: ## Download golangci-lint locally if necessary.
+	@[ -f $(GOLINT) ] || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell pwd)/bin v1.43.0
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
