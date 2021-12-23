@@ -292,6 +292,7 @@ func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, l
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: machine.Namespace,
 			Name:      fmt.Sprintf("agent-%s", *machine.Spec.Bootstrap.DataSecretName),
+			Labels:    map[string]string{"agent-install.openshift.io/watch": "true"},
 		},
 		Data: map[string][]byte{"ignition-token": []byte(token)},
 	}
