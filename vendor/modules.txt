@@ -172,7 +172,7 @@ github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
 # github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 github.com/openshift/api/config/v1
-# github.com/openshift/assisted-service v1.0.10-0.20211222073756-b8f972455c0a
+# github.com/openshift/assisted-service v1.0.10-0.20220105183243-6278140aa99d
 ## explicit
 github.com/openshift/assisted-service/api/common
 github.com/openshift/assisted-service/api/hiveextension/v1beta1

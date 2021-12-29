@@ -88,6 +88,8 @@ const (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=agentclusterinstalls,shortName=aci
+// +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".spec.clusterDeploymentRef.name",description="The name of the cluster the ACI refers to."
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".spec.status.debugInfo.state",description="State of the ACI."
 type AgentClusterInstall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -101,7 +103,7 @@ type AgentClusterInstallSpec struct {
 
 	// ImageSetRef is a reference to a ClusterImageSet. The release image specified in the ClusterImageSet will be used
 	// to install the cluster.
-	ImageSetRef hivev1.ClusterImageSetReference `json:"imageSetRef"`
+	ImageSetRef *hivev1.ClusterImageSetReference `json:"imageSetRef,omitempty"`
 
 	// ClusterDeploymentRef is a reference to the ClusterDeployment associated with this AgentClusterInstall.
 	ClusterDeploymentRef corev1.LocalObjectReference `json:"clusterDeploymentRef"`
@@ -249,6 +251,10 @@ type Networking struct {
 	// +kubebuilder:validation:Enum=OpenShiftSDN;OVNKubernetes
 	// +optional
 	NetworkType string `json:"networkType,omitempty"`
+
+	// UserManagedNetworking indicates if the networking is managed by the user.
+	// +optional
+	UserManagedNetworking bool `json:"userManagedNetworking,omitempty"`
 }
 
 // MachineNetworkEntry is a single IP address block for node IP blocks.

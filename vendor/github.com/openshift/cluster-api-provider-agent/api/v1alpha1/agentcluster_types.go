@@ -33,9 +33,6 @@ type ClusterDeploymentReference struct {
 
 // AgentClusterSpec defines the desired state of AgentCluster
 type AgentClusterSpec struct {
-	// ReleaseImage is the image used when installing the cluster
-	ReleaseImage string `json:"releaseImage"`
-
 	// ClusterName is the friendly name of the cluster. It is used for subdomains,
 	// some resource tagging, and other instances where a friendly name for the
 	// cluster is useful.
@@ -71,7 +68,7 @@ type IgnitionEndpoint struct {
 }
 
 type CaCertificateReference struct {
-	// Namespace is the namespace of the secret containing the CA certificate base64 encoded.
+	// Namespace is the namespace of the secret containing the CA certificate.
 	Namespace string `json:"namespace"`
 	// Name is the name of the secret containing the CA certificate.
 	Name string `json:"name"`

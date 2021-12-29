@@ -15,7 +15,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
-	github.com/openshift/assisted-service v1.0.10-0.20211222073756-b8f972455c0a
+	github.com/openshift/assisted-service v1.0.10-0.20220105183243-6278140aa99d
 	github.com/openshift/cluster-api-provider-agent/api v0.0.0
 	github.com/openshift/custom-resource-status v1.1.0
 	github.com/openshift/hive/apis v0.0.0-20211012200111-a691d6f21d9e

@@ -33,9 +33,6 @@ type ClusterDeploymentReference struct {
 
 // AgentClusterSpec defines the desired state of AgentCluster
 type AgentClusterSpec struct {
-	// ReleaseImage is the image used when installing the cluster
-	ReleaseImage string `json:"releaseImage"`
-
 	// ClusterName is the friendly name of the cluster. It is used for subdomains,
 	// some resource tagging, and other instances where a friendly name for the
 	// cluster is useful.

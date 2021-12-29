@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
@@ -46,7 +45,6 @@ type AgentClusterReconciler struct {
 //+kubebuilder:rbac:groups=capi-provider.agent-install.openshift.io,resources=agentclusters/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=capi-provider.agent-install.openshift.io,resources=agentclusters/finalizers,verbs=update
 //+kubebuilder:rbac:groups=hive.openshift.io,resources=clusterdeployments,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hive.openshift.io,resources=clusterimagesets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=extensions.hive.openshift.io,resources=agentclusterinstalls,verbs=get;list;watch;create;update;patch;delete
 
 func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -93,7 +91,6 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster, clusterDeployment *hivev1.ClusterDeployment) (ctrl.Result, error) {
-	// Make sure the agentClusterInstall imageSetRef match the agentCluster.Spec.releaseImage
 	agentClusterInstall := &hiveext.AgentClusterInstall{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Status.ClusterDeploymentRef.Namespace, Name: clusterDeployment.Spec.ClusterInstallRef.Name}, agentClusterInstall)
 	if err != nil {
@@ -105,12 +102,6 @@ func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, 
 	if agentClusterInstall.Spec.ProvisionRequirements.ControlPlaneAgents < 1 {
 		agentClusterInstall.Spec.ProvisionRequirements.ControlPlaneAgents = 3
 		updateACI = true
-	}
-
-	if agentClusterInstall.Spec.ImageSetRef.Name == "" {
-		agentClusterInstall.Spec.ImageSetRef = hivev1.ClusterImageSetReference{Name: agentCluster.Name}
-		updateACI = true
-
 	}
 
 	if agentClusterInstall.Spec.IgnitionEndpoint == nil && agentCluster.Spec.IgnitionEndpoint != nil {
@@ -131,47 +122,12 @@ func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, 
 	}
 	if updateACI {
 		if err = r.Client.Update(ctx, agentClusterInstall); err != nil {
-			log.WithError(err).Error("Failed to update agentClusterInstall imageSetRef")
+			log.WithError(err).Error("Failed to update agentClusterInstall")
 			return ctrl.Result{Requeue: true}, err
 		}
 	}
-	clusterImageSet := &hivev1.ClusterImageSet{}
-	err = r.Get(ctx, types.NamespacedName{Namespace: "", Name: agentClusterInstall.Spec.ImageSetRef.Name}, clusterImageSet)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return r.createImageSet(ctx, log, agentClusterInstall, agentCluster)
-		}
-		log.WithError(err).Error("Failed to get ClusterImageSet")
-		return ctrl.Result{Requeue: true}, err
-	}
 
-	if clusterImageSet.Spec.ReleaseImage != agentCluster.Spec.ReleaseImage {
-		err = fmt.Errorf("clusterImageSet ReleaseImage (%s) doens't match agentCluster ReleaseImage (%s)",
-			clusterImageSet.Spec.ReleaseImage, agentCluster.Spec.ReleaseImage)
-		log.Error(err)
-		return ctrl.Result{Requeue: true}, err
-	}
 	return ctrl.Result{}, nil
-}
-
-func (r *AgentClusterReconciler) createImageSet(ctx context.Context, log logrus.FieldLogger, agentClusterInstall *hiveext.AgentClusterInstall, agentCluster *capiproviderv1alpha1.AgentCluster) (ctrl.Result, error) {
-	log.Info("Creating ClusterImageSet")
-	clusterImageSet := &hivev1.ClusterImageSet{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ClusterImageSet",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      agentCluster.Name,
-			Namespace: "",
-		},
-		Spec: hivev1.ClusterImageSetSpec{ReleaseImage: agentCluster.Spec.ReleaseImage},
-	}
-	if err := r.Client.Create(ctx, clusterImageSet); err != nil {
-		log.WithError(err).Error("Failed to create ClusterImageSet")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
-	}
-	return ctrl.Result{Requeue: true}, nil
 }
 
 func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster) (ctrl.Result, error) {
