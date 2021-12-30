@@ -37,6 +37,7 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
+NAMESPACE ?= cluster-api-provider-agent
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -114,15 +115,16 @@ docker-push: ## Push docker image with the manager.
 
 ##@ Deployment
 
-set_controller_image:
+set_controller_image_and_namespace:
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/default && $(KUSTOMIZE) edit set namespace ${NAMESPACE}
 
 create_infrastructure-components: manifests kustomize
 ifeq ($(IMG),controller:latest)
 	echo "Please set IMG env var"
 	exit 1
 endif
-	make set_controller_image
+	make set_controller_image_and_namespace
 	$(KUSTOMIZE) build config/default > infrastructure-components.yaml
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
@@ -131,7 +133,7 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
-deploy: manifests kustomize set_controller_image ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize set_controller_image_and_namespace ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
