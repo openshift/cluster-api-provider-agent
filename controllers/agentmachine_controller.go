@@ -119,7 +119,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if machine.Spec.Bootstrap.DataSecretName != nil && agent.Spec.MachineConfigPool == "" {
-		return r.setAgentIgnitionEndpoint(ctx, log, agent, agentMachine, machine)
+		return r.setAgentIgnitionEndpoint(ctx, log, agent, machine)
 	}
 
 	// If the AgentMachine has an Agent but the Agent doesn't reference the ClusterDeployment,
@@ -241,7 +241,7 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 	return ctrl.Result{Requeue: true}, nil
 }
 
-func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, log logrus.FieldLogger, agent *aiv1beta1.Agent, agentMachine *capiproviderv1alpha1.AgentMachine, machine *clusterv1.Machine) (ctrl.Result, error) {
+func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, log logrus.FieldLogger, agent *aiv1beta1.Agent, machine *clusterv1.Machine) (ctrl.Result, error) {
 	log.Debug("Setting Ignition endpoint info")
 
 	// For now we assume that we have bootstrap data that is an ignition config containing the ignition source and token.
@@ -296,12 +296,15 @@ func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, l
 		},
 		Data: map[string][]byte{"ignition-token": []byte(token)},
 	}
-	// TODO Delete secret upon cleanup
-	if err := r.Client.Create(ctx, ignitionTokenSecret); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			log.WithError(err).Error("Failed to create ignitionTokenSecret")
-			return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
-		}
+	// TODO: Use a dedicated secret per host and Delete the secret upon cleanup,
+	err := r.Client.Create(ctx, ignitionTokenSecret)
+	if apierrors.IsAlreadyExists(err) {
+		log.Infof("ignitionTokenSecret %s already exits, updating secret content")
+		err = r.Client.Update(ctx, ignitionTokenSecret)
+	}
+	if err != nil {
+		log.WithError(err).Error("Failed to create ignitionTokenSecret")
+		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 	}
 
 	agent.Spec.IgnitionEndpointTokenReference = &aiv1beta1.IgnitionEndpointTokenReference{
