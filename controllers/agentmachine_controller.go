@@ -299,7 +299,7 @@ func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, l
 	// TODO: Use a dedicated secret per host and Delete the secret upon cleanup,
 	err := r.Client.Create(ctx, ignitionTokenSecret)
 	if apierrors.IsAlreadyExists(err) {
-		log.Infof("ignitionTokenSecret %s already exits, updating secret content")
+		log.Infof("ignitionTokenSecret %s already exits, updating secret content", ignitionTokenSecret)
 		err = r.Client.Update(ctx, ignitionTokenSecret)
 	}
 	if err != nil {
