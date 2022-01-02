@@ -272,7 +272,7 @@ func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, l
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	log.Infof("Setting MachineConfigPool to %s", agent.Spec.MachineConfigPool)
+	log.Infof("Setting MachineConfigPool to %s", ignitionSourceSuffix)
 	agent.Spec.MachineConfigPool = ignitionSourceSuffix
 
 	token := ""
