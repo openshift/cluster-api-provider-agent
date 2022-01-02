@@ -269,7 +269,6 @@ var _ = Describe("agentmachine reconcile", func() {
 		expectedAddresses := []string{"1.2.3.4", "2.3.4.5", "3.4.5.6", "agent1"}
 		expectedTypes := []string{string(clusterv1.MachineExternalIP), string(clusterv1.MachineInternalDNS)}
 		for i := 0; i < len(agentMachine.Status.Addresses); i++ {
-			fmt.Printf("Address: %s, Type: %s", agentMachine.Status.Addresses[i].Address, string(agentMachine.Status.Addresses[i].Type))
 			Expect(funk.ContainsString(expectedAddresses, agentMachine.Status.Addresses[i].Address)).To(BeEquivalentTo(true))
 			Expect(funk.ContainsString(expectedTypes, string(agentMachine.Status.Addresses[i].Type))).To(BeEquivalentTo(true))
 		}

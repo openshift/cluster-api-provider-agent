@@ -21,11 +21,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/openshift/hive/apis/hive/v1/agent"
-
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
 	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
+	"github.com/openshift/hive/apis/hive/v1/agent"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

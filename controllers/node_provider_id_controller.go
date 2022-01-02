@@ -18,10 +18,10 @@ package controllers
 
 import (
 	"context"
-	"github.com/pkg/errors"
 	"time"
 
 	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"

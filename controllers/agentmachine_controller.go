@@ -24,15 +24,14 @@ import (
 	"strings"
 	"time"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
 	ignitionapi "github.com/coreos/ignition/v2/config/v3_1/types"
-
 	"github.com/go-openapi/swag"
 	aiv1beta1 "github.com/openshift/assisted-service/api/v1beta1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	"github.com/sirupsen/logrus"
 	"github.com/thoas/go-funk"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,8 +42,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 )
 
 const (
@@ -104,7 +101,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	agent := &aiv1beta1.Agent{}
 	agentRef := types.NamespacedName{Name: agentMachine.Status.AgentRef.Name, Namespace: agentMachine.Status.AgentRef.Namespace}
-	if err := r.Get(ctx, agentRef, agent); err != nil {
+	if err = r.Get(ctx, agentRef, agent); err != nil {
 		log.WithError(err).Errorf("Failed to get agent %s", agentRef)
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 	}
@@ -299,7 +296,8 @@ func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, l
 	// TODO: Use a dedicated secret per host and Delete the secret upon cleanup,
 	err := r.Client.Create(ctx, ignitionTokenSecret)
 	if apierrors.IsAlreadyExists(err) {
-		log.Infof("ignitionTokenSecret %s already exits, updating secret content")
+		log.Infof("ignitionTokenSecret %s already exits, updating secret content",
+			fmt.Sprintf("agent-%s", *machine.Spec.Bootstrap.DataSecretName))
 		err = r.Client.Update(ctx, ignitionTokenSecret)
 	}
 	if err != nil {
@@ -407,7 +405,8 @@ func (r *AgentMachineReconciler) updateAgentStatus(ctx context.Context, log logr
 			} else if condition.Status == "False" {
 				if condition.Reason == aiv1beta1.InstallationFailedReason {
 					agentMachine.Status.FailureReason = (*clustererrors.MachineStatusError)(&condition.Reason)
-					agentMachine.Status.FailureMessage = &condition.Message
+					message := condition.Message
+					agentMachine.Status.FailureMessage = &message
 				}
 			}
 			break
