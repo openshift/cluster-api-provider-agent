@@ -275,7 +275,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		}
 	})
 
-	It("agentMachine set ignition endpoint", func() {
+	It("agentMachine find agent e2e with ignition endpoint", func() {
 		agent := newAgent("agent-1", testNamespace, aiv1beta1.AgentSpec{Approved: true})
 		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: "False"})
 		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: "True"})
@@ -336,6 +336,15 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(err).To(BeNil())
 		Expect(result).To(Equal(ctrl.Result{Requeue: true}))
 
+		// set clusterdeployment
+		result, err = amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+		Expect(err).To(BeNil())
+		Expect(result).To(Equal(ctrl.Result{Requeue: true}))
+
+		agent = &aiv1beta1.Agent{}
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agent-1"}, agent)).To(BeNil())
+		Expect(agent.Spec.ClusterDeploymentName.Name).To(BeEquivalentTo("cluster-deployment-agentMachine-1"))
+
 		// Set ignition
 		result, err = amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
 		Expect(err).To(BeNil())
@@ -350,7 +359,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(agentSecret.Data["ignition-token"]).To(BeEquivalentTo([]byte("encodedToken")))
 	})
 
-	It("agentMachine find agent end-to-end", func() {
+	It("agentMachine find agent e2e", func() {
 		var labels map[string]string
 		Expect(c.Create(ctx, newAgentWithProperties("agent-0", testNamespace, false, false, true, 32, 100, labels))).To(BeNil()) // Agent0: not approved
 		Expect(c.Create(ctx, newAgentWithProperties("agent-1", testNamespace, true, true, true, 32, 100, labels))).To(BeNil())   // Agent1: already bound

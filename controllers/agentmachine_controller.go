@@ -118,15 +118,15 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, nil
 	}
 
-	if machine.Spec.Bootstrap.DataSecretName != nil && agent.Spec.MachineConfigPool == "" {
-		return r.setAgentIgnitionEndpoint(ctx, log, agent, agentMachine, machine)
-	}
-
 	// If the AgentMachine has an Agent but the Agent doesn't reference the ClusterDeployment,
 	// then set it. At this point we might find that the Agent is already bound and we'll need
 	// to find a new one.
 	if agent.Spec.ClusterDeploymentName == nil {
 		return r.setAgentClusterDeploymentRef(ctx, log, agentMachine, agent)
+	}
+
+	if machine.Spec.Bootstrap.DataSecretName != nil && agent.Spec.MachineConfigPool == "" {
+		return r.setAgentIgnitionEndpoint(ctx, log, agent, agentMachine, machine)
 	}
 
 	// If the AgentMachine has an agent, check its conditions and update ready/error
