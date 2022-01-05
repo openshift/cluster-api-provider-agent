@@ -36,6 +36,10 @@ spec:
           spec:
             description: AgentClusterSpec defines the desired state of AgentCluster
             properties:
+              agentNamespace:
+                description: AgentNamespace is the namespace to search for Agent for
+                  this cluster
+                type: string
               baseDomain:
                 description: BaseDomain is the base domain to which the cluster should
                   belong.

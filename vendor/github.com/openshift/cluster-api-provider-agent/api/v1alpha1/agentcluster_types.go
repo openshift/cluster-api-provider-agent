@@ -56,6 +56,10 @@ type AgentClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
 	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
+
+	// AgentNamespace is the namespace to search for Agent for this cluster
+	// +optional
+	AgentNamespace string `json:"agentNamespace,omitempty"`
 }
 
 // IgnitionEndpoint store the data to of the custom ignition endpoint.
@@ -71,7 +75,7 @@ type IgnitionEndpoint struct {
 }
 
 type CaCertificateReference struct {
-	// Namespace is the namespace of the secret containing the CA certificate base64 encoded.
+	// Namespace is the namespace of the secret containing the CA certificate.
 	Namespace string `json:"namespace"`
 	// Name is the name of the secret containing the CA certificate.
 	Name string `json:"name"`

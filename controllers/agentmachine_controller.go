@@ -94,18 +94,6 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	// If the AgentMachine doesn't have an agent, find one and set the agentRef
-	if agentMachine.Status.AgentRef == nil {
-		return r.findAgent(ctx, log, agentMachine)
-	}
-
-	agent := &aiv1beta1.Agent{}
-	agentRef := types.NamespacedName{Name: agentMachine.Status.AgentRef.Name, Namespace: agentMachine.Status.AgentRef.Namespace}
-	if err = r.Get(ctx, agentRef, agent); err != nil {
-		log.WithError(err).Errorf("Failed to get agent %s", agentRef)
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
-	}
-
 	machine, err := clusterutil.GetOwnerMachine(ctx, r.Client, agentMachine.ObjectMeta)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
@@ -113,6 +101,23 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if machine == nil {
 		log.Info("Waiting for Machine Controller to set OwnerRef on AgentMachine")
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, nil
+	}
+
+	agentCluster, err := r.getAgentCluster(ctx, log, machine)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+	}
+
+	// If the AgentMachine doesn't have an agent, find one and set the agentRef
+	if agentMachine.Status.AgentRef == nil {
+		return r.findAgent(ctx, log, agentMachine, agentCluster)
+	}
+
+	agent := &aiv1beta1.Agent{}
+	agentRef := types.NamespacedName{Name: agentMachine.Status.AgentRef.Name, Namespace: agentMachine.Status.AgentRef.Namespace}
+	if err = r.Get(ctx, agentRef, agent); err != nil {
+		log.WithError(err).Errorf("Failed to get agent %s", agentRef)
+		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 	}
 
 	if machine.Spec.Bootstrap.DataSecretName != nil && agent.Spec.MachineConfigPool == "" {
@@ -123,7 +128,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// then set it. At this point we might find that the Agent is already bound and we'll need
 	// to find a new one.
 	if agent.Spec.ClusterDeploymentName == nil {
-		return r.setAgentClusterDeploymentRef(ctx, log, agentMachine, agent)
+		return r.setAgentClusterDeploymentRef(ctx, log, agent, agentCluster.Status.ClusterDeploymentRef)
 	}
 
 	// If the AgentMachine has an agent, check its conditions and update ready/error
@@ -180,7 +185,25 @@ func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, lo
 	return nil, nil
 }
 
-func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) (ctrl.Result, error) {
+func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus.FieldLogger, machine *clusterv1.Machine) (*capiproviderv1alpha1.AgentCluster, error) {
+	cluster, err := clusterutil.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
+	if err != nil {
+		log.Info("Machine is missing cluster label or cluster does not exist")
+		return nil, err
+	}
+
+	agentClusterRef := types.NamespacedName{Name: cluster.Spec.InfrastructureRef.Name, Namespace: cluster.Spec.InfrastructureRef.Namespace}
+	agentCluster := &capiproviderv1alpha1.AgentCluster{}
+	if err := r.Get(ctx, agentClusterRef, agentCluster); err != nil {
+		log.WithError(err).Errorf("Failed to get agentCluster %s", agentClusterRef)
+		return nil, err
+	}
+
+	return agentCluster, nil
+}
+
+func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine,
+	agentCluster *capiproviderv1alpha1.AgentCluster) (ctrl.Result, error) {
 	var selector labels.Selector
 	if agentMachine.Spec.AgentLabelSelector != nil {
 		var err error
@@ -192,9 +215,14 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 	} else {
 		selector = labels.Everything()
 	}
+	listOptions := client.ListOptions{LabelSelector: selector}
+
+	if agentCluster.Spec.AgentNamespace != "" {
+		listOptions.Namespace = agentCluster.Spec.AgentNamespace
+	}
 
 	agents := &aiv1beta1.AgentList{}
-	if err := r.List(ctx, agents, &client.ListOptions{LabelSelector: selector}); err != nil {
+	if err := r.List(ctx, agents, &listOptions); err != nil {
 		log.WithError(err).Error("failed to list agents")
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 	}
@@ -348,15 +376,8 @@ func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1alpha1.Age
 	return true
 }
 
-func (r *AgentMachineReconciler) setAgentClusterDeploymentRef(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine, agent *aiv1beta1.Agent) (ctrl.Result, error) {
-	clusterDeploymentRef, err := r.getClusterDeploymentFromAgentMachine(ctx, log, agentMachine)
-	if err != nil {
-		log.WithError(err).Error("Failed to find ClusterDeploymentRef")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
-	}
-	if clusterDeploymentRef == nil {
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, nil
-	}
+func (r *AgentMachineReconciler) setAgentClusterDeploymentRef(ctx context.Context, log logrus.FieldLogger, agent *aiv1beta1.Agent,
+	clusterDeploymentRef capiproviderv1alpha1.ClusterDeploymentReference) (ctrl.Result, error) {
 
 	agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{Namespace: clusterDeploymentRef.Namespace, Name: clusterDeploymentRef.Name}
 
@@ -366,33 +387,6 @@ func (r *AgentMachineReconciler) setAgentClusterDeploymentRef(ctx context.Contex
 	}
 
 	return ctrl.Result{Requeue: true}, nil
-}
-
-func (r *AgentMachineReconciler) getClusterDeploymentFromAgentMachine(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) (*capiproviderv1alpha1.ClusterDeploymentReference, error) {
-	// AgentMachine -> CAPI Machine -> Cluster -> ClusterDeployment
-	machine, err := clusterutil.GetOwnerMachine(ctx, r.Client, agentMachine.ObjectMeta)
-	if err != nil {
-		return nil, err
-	}
-	if machine == nil {
-		log.Info("Waiting for Machine Controller to set OwnerRef on AgentMachine")
-		return nil, nil
-	}
-
-	cluster, err := clusterutil.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
-	if err != nil {
-		log.Info("Machine is missing cluster label or cluster does not exist")
-		return nil, nil
-	}
-
-	agentClusterRef := types.NamespacedName{Name: cluster.Spec.InfrastructureRef.Name, Namespace: cluster.Spec.InfrastructureRef.Namespace}
-	agentCluster := &capiproviderv1alpha1.AgentCluster{}
-	if err := r.Get(ctx, agentClusterRef, agentCluster); err != nil {
-		log.WithError(err).Errorf("Failed to get agentCluster %s", agentClusterRef)
-		return nil, err
-	}
-
-	return &agentCluster.Status.ClusterDeploymentRef, nil
 }
 
 func (r *AgentMachineReconciler) updateAgentStatus(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine, agent *aiv1beta1.Agent) (ctrl.Result, error) {
