@@ -35,6 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	clustererrors "sigs.k8s.io/cluster-api/errors"
@@ -49,6 +50,7 @@ const (
 	defaultRequeueWaitingForAgentToBeInstalled = 20 * time.Second
 	defaultRequeueWaitingForAvailableAgent     = 30 * time.Second
 	AgentMachineFinalizerName                  = "agentmachine." + aiv1beta1.Group + "/deprovision"
+	AgentMachineRefLabelKey                    = "agentMachineRef"
 )
 
 // AgentMachineReconciler reconciles a AgentMachine object
@@ -95,18 +97,6 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	// If the AgentMachine doesn't have an agent, find one and set the agentRef
-	if agentMachine.Status.AgentRef == nil {
-		return r.findAgent(ctx, log, agentMachine)
-	}
-
-	agent := &aiv1beta1.Agent{}
-	agentRef := types.NamespacedName{Name: agentMachine.Status.AgentRef.Name, Namespace: agentMachine.Status.AgentRef.Namespace}
-	if err = r.AgentClient.Get(ctx, agentRef, agent); err != nil {
-		log.WithError(err).Errorf("Failed to get agent %s", agentRef)
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
-	}
-
 	machine, err := clusterutil.GetOwnerMachine(ctx, r.Client, agentMachine.ObjectMeta)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
@@ -116,19 +106,34 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, nil
 	}
 
-	if machine.Spec.Bootstrap.DataSecretName != nil && agent.Spec.MachineConfigPool == "" {
-		return r.setAgentIgnitionEndpoint(ctx, log, agent, machine)
+	agentCluster, err := r.getAgentCluster(ctx, log, machine)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 	}
 
-	// If the AgentMachine has an Agent but the Agent doesn't reference the ClusterDeployment,
-	// then set it. At this point we might find that the Agent is already bound and we'll need
-	// to find a new one.
-	if agent.Spec.ClusterDeploymentName == nil {
-		return r.setAgentClusterDeploymentRef(ctx, log, agentMachine, agent)
+	machineConfigPool, ignitionTokenSecretRef, err := r.processBootstrapDataSecret(ctx, log, machine)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+	}
+
+	// If the AgentMachine doesn't have an agent, find one and set the agentRef
+	if agentMachine.Status.AgentRef == nil {
+		foundAgent, result, err := r.findAgent(ctx, log, agentMachine, agentCluster.Status.ClusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef)
+		if err != nil || foundAgent == nil {
+			return result, err
+		}
+
+		err = r.updateAgentMachineWithFoundAgent(ctx, log, agentMachine, foundAgent)
+		if err != nil {
+			log.WithError(err).Error("failed to update AgentMachine with found agent")
+			return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		} else {
+			return ctrl.Result{Requeue: true}, nil
+		}
 	}
 
 	// If the AgentMachine has an agent, check its conditions and update ready/error
-	return r.updateAgentStatus(ctx, log, agentMachine, agent)
+	return r.updateAgentStatus(ctx, log, agentMachine)
 }
 
 func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) (*ctrl.Result, error) {
@@ -181,97 +186,184 @@ func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, lo
 	return nil, nil
 }
 
-func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) (ctrl.Result, error) {
+func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus.FieldLogger, machine *clusterv1.Machine) (*capiproviderv1alpha1.AgentCluster, error) {
+	cluster, err := clusterutil.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
+	if err != nil {
+		log.Info("Machine is missing cluster label or cluster does not exist")
+		return nil, err
+	}
+
+	agentClusterRef := types.NamespacedName{Name: cluster.Spec.InfrastructureRef.Name, Namespace: cluster.Spec.InfrastructureRef.Namespace}
+	agentCluster := &capiproviderv1alpha1.AgentCluster{}
+	if err := r.Get(ctx, agentClusterRef, agentCluster); err != nil {
+		log.WithError(err).Errorf("Failed to get agentCluster %s", agentClusterRef)
+		return nil, err
+	}
+
+	return agentCluster, nil
+}
+
+func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine,
+	clusterDeploymentRef capiproviderv1alpha1.ClusterDeploymentReference, machineConfigPool string,
+	ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference) (*aiv1beta1.Agent, ctrl.Result, error) {
+
+	foundAgent, err := r.findAgentWithAgentMachineLabel(ctx, log, agentMachine)
+	if err != nil {
+		log.WithError(err).Error("failed while finding agents")
+		return nil, ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+	}
+	if foundAgent != nil {
+		log.Infof("Found agent with AgentMachine label: %s/%s", foundAgent.Namespace, foundAgent.Name)
+		return foundAgent, ctrl.Result{Requeue: true}, nil
+	}
+
 	var selector labels.Selector
 	if agentMachine.Spec.AgentLabelSelector != nil {
-		var err error
 		selector, err = metav1.LabelSelectorAsSelector(agentMachine.Spec.AgentLabelSelector)
 		if err != nil {
 			log.WithError(err).Error("failed to convert label selector to selector")
-			return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+			return nil, ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 		}
 	} else {
-		selector = labels.Everything()
+		selector = labels.NewSelector()
+	}
+	requirement, _ := labels.NewRequirement(AgentMachineRefLabelKey, selection.DoesNotExist, []string{})
+	selector = selector.Add(*requirement)
+
+	agents := &aiv1beta1.AgentList{}
+	if err = r.AgentClient.List(ctx, agents, &client.ListOptions{LabelSelector: selector}); err != nil {
+		log.WithError(err).Error("failed to list agents")
+		return nil, ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+	}
+
+	// Find an agent that is unbound and whose validations pass
+	for i := 0; i < len(agents.Items) && foundAgent == nil; i++ {
+		if isValidAgent(&agents.Items[i], agentMachine) {
+			foundAgent = &agents.Items[i]
+			log.Infof("Found agent to associate with AgentMachine: %s/%s", foundAgent.Namespace, foundAgent.Name)
+			err = r.updateFoundAgent(ctx, log, agentMachine, foundAgent, clusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef)
+			if err != nil {
+				// If we failed to update the agent then it might have already been taken, try the others
+				log.WithError(err).Infof("failed to update found agent, trying other agents")
+				foundAgent = nil
+			} else {
+				break
+			}
+		}
+	}
+
+	if foundAgent == nil {
+		log.Info("Failed to own any available Agent")
+		return nil, ctrl.Result{RequeueAfter: defaultRequeueWaitingForAvailableAgent}, nil
+	}
+
+	return foundAgent, ctrl.Result{Requeue: true}, nil
+}
+
+func getAgentMachineRefLabel(agentMachine *capiproviderv1alpha1.AgentMachine) string {
+	return string(agentMachine.GetUID())
+}
+
+// When we find an agent, we add a label to it in case we're interrupted before we can set agentMachine.Status.AgentRef
+// Here we look for such an agent, and if we find one, set the AgentRef.
+func (r *AgentMachineReconciler) findAgentWithAgentMachineLabel(ctx context.Context, log logrus.FieldLogger,
+	agentMachine *capiproviderv1alpha1.AgentMachine) (*aiv1beta1.Agent, error) {
+
+	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{AgentMachineRefLabelKey: getAgentMachineRefLabel(agentMachine)}}
+	selector, err := metav1.LabelSelectorAsSelector(&labelSelector)
+	if err != nil {
+		log.WithError(err).Error("failed to convert label selector to selector")
+		return nil, err
 	}
 
 	agents := &aiv1beta1.AgentList{}
 	if err := r.AgentClient.List(ctx, agents, &client.ListOptions{LabelSelector: selector}); err != nil {
 		log.WithError(err).Error("failed to list agents")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return nil, err
 	}
 
-	agentMachines := &capiproviderv1alpha1.AgentMachineList{}
-	if err := r.List(ctx, agentMachines); err != nil {
-		log.WithError(err).Error("failed to list agent machines")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
-	}
-	var foundAgent *aiv1beta1.Agent
-
-	// Find an agent that is unbound and whose validations pass
-	for i := 0; i < len(agents.Items) && foundAgent == nil; i++ {
-		if isValidAgent(&agents.Items[i], agentMachine, agentMachines) {
-			foundAgent = &agents.Items[i]
-		}
+	if len(agents.Items) == 0 {
+		return nil, nil
 	}
 
-	if foundAgent == nil {
-		log.Info("Did not find any available Agents")
-		return ctrl.Result{RequeueAfter: defaultRequeueWaitingForAvailableAgent}, nil
-	}
+	return &agents.Items[0], nil
+}
 
-	log.Infof("Found agent to associate with AgentMachine: %s/%s", foundAgent.Namespace, foundAgent.Name)
+func (r *AgentMachineReconciler) updateAgentMachineWithFoundAgent(ctx context.Context, log logrus.FieldLogger,
+	agentMachine *capiproviderv1alpha1.AgentMachine, agent *aiv1beta1.Agent) error {
 
-	agentMachine.Spec.ProviderID = swag.String("agent://" + foundAgent.Name)
+	log.Infof("Updating AgentMachine to reference Agent %s/%s", agent.Namespace, agent.Name)
+	agentMachine.Spec.ProviderID = swag.String("agent://" + agent.Name)
 	if err := r.Update(ctx, agentMachine); err != nil {
 		log.WithError(err).Error("failed to update AgentMachine Spec")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return err
 	}
 
-	agentMachine.Status.AgentRef = &capiproviderv1alpha1.AgentReference{Namespace: foundAgent.Namespace, Name: foundAgent.Name}
-	agentMachine.Status.Addresses = getAddresses(foundAgent)
+	agentMachine.Status.AgentRef = &capiproviderv1alpha1.AgentReference{Namespace: agent.Namespace, Name: agent.Name}
+	agentMachine.Status.Addresses = getAddresses(agent)
 	agentMachine.Status.Ready = false
 
 	if err := r.Status().Update(ctx, agentMachine); err != nil {
 		log.WithError(err).Error("failed to update AgentMachine Status")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return err
 	}
 
-	return ctrl.Result{Requeue: true}, nil
+	return nil
 }
 
-func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, log logrus.FieldLogger, agent *aiv1beta1.Agent, machine *clusterv1.Machine) (ctrl.Result, error) {
-	log.Debug("Setting Ignition endpoint info")
+func (r *AgentMachineReconciler) updateFoundAgent(ctx context.Context, log logrus.FieldLogger,
+	agentMachine *capiproviderv1alpha1.AgentMachine, agent *aiv1beta1.Agent,
+	clusterDeploymentRef capiproviderv1alpha1.ClusterDeploymentReference, machineConfigPool string,
+	ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference) error {
 
-	// For now we assume that we have bootstrap data that is an ignition config containing the ignition source and token.
-	// We also assume that once set, it will not change, so we only need to reconcile this once.
+	log.Infof("Updating Agent %s/%s to be referenced by AgentMachine", agent.Namespace, agent.Name)
+	if agent.ObjectMeta.Labels == nil {
+		agent.ObjectMeta.Labels = make(map[string]string)
+	}
+	agent.ObjectMeta.Labels[AgentMachineRefLabelKey] = getAgentMachineRefLabel(agentMachine)
+	agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{Namespace: clusterDeploymentRef.Namespace, Name: clusterDeploymentRef.Name}
+	agent.Spec.MachineConfigPool = machineConfigPool
+	agent.Spec.IgnitionEndpointTokenReference = ignitionTokenSecretRef
+
+	if err := r.AgentClient.Update(ctx, agent); err != nil {
+		log.WithError(err).Errorf("failed to update found Agent %s", agent.Name)
+		return err
+	}
+	return nil
+}
+
+func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context, log logrus.FieldLogger,
+	machine *clusterv1.Machine) (string, *aiv1beta1.IgnitionEndpointTokenReference, error) {
+
+	machineConfigPool := ""
+	var ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference
+
+	if machine.Spec.Bootstrap.DataSecretName == nil {
+		log.Info("No data secret, continuing")
+		return machineConfigPool, ignitionTokenSecretRef, nil
+	}
+
+	// For now we assume that if we have bootstrap data then it is an ignition config containing the ignition source and token.
 	bootstrapDataSecret := &corev1.Secret{}
 	bootstrapDataSecretRef := types.NamespacedName{Namespace: machine.Namespace, Name: *machine.Spec.Bootstrap.DataSecretName}
 	if err := r.Get(ctx, bootstrapDataSecretRef, bootstrapDataSecret); err != nil {
 		log.WithError(err).Errorf("Failed to get user-data secret %s", *machine.Spec.Bootstrap.DataSecretName)
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return machineConfigPool, ignitionTokenSecretRef, err
 	}
 
 	ignitionConfig := &ignitionapi.Config{}
 	if err := json.Unmarshal(bootstrapDataSecret.Data["value"], ignitionConfig); err != nil {
 		log.WithError(err).Errorf("Failed to unmarshal user-data secret %s", *machine.Spec.Bootstrap.DataSecretName)
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return machineConfigPool, ignitionTokenSecretRef, err
 	}
 
 	if len(ignitionConfig.Ignition.Config.Merge) != 1 {
 		log.Errorf("expected one ignition source in secret %s but found %d", *machine.Spec.Bootstrap.DataSecretName, len(ignitionConfig.Ignition.Config.Merge))
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, errors.New("did not find one ignition source as expected")
+		return machineConfigPool, ignitionTokenSecretRef, errors.New("did not find one ignition source as expected")
 	}
 
 	ignitionSource := ignitionConfig.Ignition.Config.Merge[0]
-	ignitionSourceSuffix := (*ignitionSource.Source)[strings.LastIndex((*ignitionSource.Source), "/")+1:]
-
-	// If the MachineConfigPool was set then assume we already reconciled and can return
-	if agent.Spec.MachineConfigPool == ignitionSourceSuffix {
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	log.Infof("Setting MachineConfigPool to %s", ignitionSourceSuffix)
-	agent.Spec.MachineConfigPool = ignitionSourceSuffix
+	machineConfigPool = (*ignitionSource.Source)[strings.LastIndex((*ignitionSource.Source), "/")+1:]
 
 	token := ""
 	for _, header := range ignitionSource.HTTPHeaders {
@@ -281,19 +373,21 @@ func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, l
 		expectedPrefix := "Bearer "
 		if !strings.HasPrefix(*header.Value, expectedPrefix) {
 			log.Errorf("did not find expected prefix for bearer token in user-data secret %s", *machine.Spec.Bootstrap.DataSecretName)
-			return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, errors.New("did not find expected prefix for bearer token")
+			return machineConfigPool, ignitionTokenSecretRef, errors.New("did not find expected prefix for bearer token")
 		}
 		token = (*header.Value)[len(expectedPrefix):]
 	}
 
+	ignitionTokenSecretName := fmt.Sprintf("agent-%s", *machine.Spec.Bootstrap.DataSecretName)
 	ignitionTokenSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: machine.Namespace,
-			Name:      fmt.Sprintf("agent-%s", *machine.Spec.Bootstrap.DataSecretName),
+			Name:      ignitionTokenSecretName,
 			Labels:    map[string]string{"agent-install.openshift.io/watch": "true"},
 		},
 		Data: map[string][]byte{"ignition-token": []byte(token)},
 	}
+	ignitionTokenSecretRef = &aiv1beta1.IgnitionEndpointTokenReference{Namespace: machine.Namespace, Name: ignitionTokenSecretName}
 	// TODO: Use a dedicated secret per host and Delete the secret upon cleanup,
 	err := r.Client.Create(ctx, ignitionTokenSecret)
 	if apierrors.IsAlreadyExists(err) {
@@ -303,24 +397,13 @@ func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, l
 	}
 	if err != nil {
 		log.WithError(err).Error("Failed to create ignitionTokenSecret")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return machineConfigPool, ignitionTokenSecretRef, err
 	}
 
-	agent.Spec.IgnitionEndpointTokenReference = &aiv1beta1.IgnitionEndpointTokenReference{
-		Namespace: ignitionTokenSecret.Namespace,
-		Name:      ignitionTokenSecret.Name,
-	}
-
-	if agentUpdateErr := r.AgentClient.Update(ctx, agent); agentUpdateErr != nil {
-		log.WithError(agentUpdateErr).Error("failed to update Agent with ignition endpoint")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, agentUpdateErr
-	}
-	log.Info("Successfully updated Ignition endpoint token and MachineConfigPool")
-
-	return ctrl.Result{Requeue: true}, nil
+	return machineConfigPool, ignitionTokenSecretRef, nil
 }
 
-func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1alpha1.AgentMachine, agentMachines *capiproviderv1alpha1.AgentMachineList) bool {
+func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1alpha1.AgentMachine) bool {
 	if !agent.Spec.Approved {
 		return false
 	}
@@ -340,64 +423,18 @@ func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1alpha1.Age
 		return false
 	}
 
-	// Make sure no other AgentMachine took this Agent already
-	for _, agentMachinePtr := range agentMachines.Items {
-		if agentMachinePtr.Status.AgentRef != nil && agentMachinePtr.Status.AgentRef.Namespace == agent.Namespace && agentMachinePtr.Status.AgentRef.Name == agent.Name {
-			return false
-		}
-	}
 	return true
 }
 
-func (r *AgentMachineReconciler) setAgentClusterDeploymentRef(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine, agent *aiv1beta1.Agent) (ctrl.Result, error) {
-	clusterDeploymentRef, err := r.getClusterDeploymentFromAgentMachine(ctx, log, agentMachine)
-	if err != nil {
-		log.WithError(err).Error("Failed to find ClusterDeploymentRef")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
-	}
-	if clusterDeploymentRef == nil {
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, nil
-	}
-
-	agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{Namespace: clusterDeploymentRef.Namespace, Name: clusterDeploymentRef.Name}
-
-	if err := r.AgentClient.Update(ctx, agent); err != nil {
-		log.WithError(err).Error("failed to update Agent with ClusterDeployment ref")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
-	}
-
-	return ctrl.Result{Requeue: true}, nil
-}
-
-func (r *AgentMachineReconciler) getClusterDeploymentFromAgentMachine(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) (*capiproviderv1alpha1.ClusterDeploymentReference, error) {
-	// AgentMachine -> CAPI Machine -> Cluster -> ClusterDeployment
-	machine, err := clusterutil.GetOwnerMachine(ctx, r.Client, agentMachine.ObjectMeta)
-	if err != nil {
-		return nil, err
-	}
-	if machine == nil {
-		log.Info("Waiting for Machine Controller to set OwnerRef on AgentMachine")
-		return nil, nil
-	}
-
-	cluster, err := clusterutil.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
-	if err != nil {
-		log.Info("Machine is missing cluster label or cluster does not exist")
-		return nil, nil
-	}
-
-	agentClusterRef := types.NamespacedName{Name: cluster.Spec.InfrastructureRef.Name, Namespace: cluster.Spec.InfrastructureRef.Namespace}
-	agentCluster := &capiproviderv1alpha1.AgentCluster{}
-	if err := r.Get(ctx, agentClusterRef, agentCluster); err != nil {
-		log.WithError(err).Errorf("Failed to get agentCluster %s", agentClusterRef)
-		return nil, err
-	}
-
-	return &agentCluster.Status.ClusterDeploymentRef, nil
-}
-
-func (r *AgentMachineReconciler) updateAgentStatus(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine, agent *aiv1beta1.Agent) (ctrl.Result, error) {
+func (r *AgentMachineReconciler) updateAgentStatus(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) (ctrl.Result, error) {
 	log.Info("Updating agentMachine status")
+	agent := &aiv1beta1.Agent{}
+	agentRef := types.NamespacedName{Name: agentMachine.Status.AgentRef.Name, Namespace: agentMachine.Status.AgentRef.Namespace}
+	if err := r.AgentClient.Get(ctx, agentRef, agent); err != nil {
+		log.WithError(err).Errorf("Failed to get agent %s", agentRef)
+		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+	}
+
 	for _, condition := range agent.Status.Conditions {
 		if condition.Type == aiv1beta1.InstalledCondition {
 			if condition.Status == "True" {
