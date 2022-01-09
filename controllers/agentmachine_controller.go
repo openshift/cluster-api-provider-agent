@@ -54,8 +54,9 @@ const (
 // AgentMachineReconciler reconciles a AgentMachine object
 type AgentMachineReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Log    logrus.FieldLogger
+	Scheme      *runtime.Scheme
+	Log         logrus.FieldLogger
+	AgentClient client.Client
 }
 
 //+kubebuilder:rbac:groups=capi-provider.agent-install.openshift.io,resources=agentmachines,verbs=get;list;watch;create;update;patch;delete
@@ -101,7 +102,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	agent := &aiv1beta1.Agent{}
 	agentRef := types.NamespacedName{Name: agentMachine.Status.AgentRef.Name, Namespace: agentMachine.Status.AgentRef.Namespace}
-	if err = r.Get(ctx, agentRef, agent); err != nil {
+	if err = r.AgentClient.Get(ctx, agentRef, agent); err != nil {
 		log.WithError(err).Errorf("Failed to get agent %s", agentRef)
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 	}
@@ -148,7 +149,7 @@ func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, lo
 				r.Log.Info("Removing ClusterDeployment ref to unbind Agent")
 				agent := &aiv1beta1.Agent{}
 				agentRef := types.NamespacedName{Name: agentMachine.Status.AgentRef.Name, Namespace: agentMachine.Status.AgentRef.Namespace}
-				err := r.Get(ctx, agentRef, agent)
+				err := r.AgentClient.Get(ctx, agentRef, agent)
 				if err != nil {
 					if apierrors.IsNotFound(err) {
 						log.WithError(err).Infof("Failed to get agent %s. assuming the agent no longer exists", agentRef)
@@ -194,7 +195,7 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 	}
 
 	agents := &aiv1beta1.AgentList{}
-	if err := r.List(ctx, agents, &client.ListOptions{LabelSelector: selector}); err != nil {
+	if err := r.AgentClient.List(ctx, agents, &client.ListOptions{LabelSelector: selector}); err != nil {
 		log.WithError(err).Error("failed to list agents")
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 	}
@@ -310,7 +311,7 @@ func (r *AgentMachineReconciler) setAgentIgnitionEndpoint(ctx context.Context, l
 		Name:      ignitionTokenSecret.Name,
 	}
 
-	if agentUpdateErr := r.Update(ctx, agent); agentUpdateErr != nil {
+	if agentUpdateErr := r.AgentClient.Update(ctx, agent); agentUpdateErr != nil {
 		log.WithError(agentUpdateErr).Error("failed to update Agent with ignition endpoint")
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, agentUpdateErr
 	}
@@ -360,7 +361,7 @@ func (r *AgentMachineReconciler) setAgentClusterDeploymentRef(ctx context.Contex
 
 	agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{Namespace: clusterDeploymentRef.Namespace, Name: clusterDeploymentRef.Name}
 
-	if err := r.Update(ctx, agent); err != nil {
+	if err := r.AgentClient.Update(ctx, agent); err != nil {
 		log.WithError(err).Error("failed to update Agent with ClusterDeployment ref")
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 	}

@@ -146,9 +146,10 @@ var _ = Describe("agentmachine reconcile", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 
 		amr = &AgentMachineReconciler{
-			Client: c,
-			Scheme: scheme.Scheme,
-			Log:    logrus.New(),
+			Client:      c,
+			Scheme:      scheme.Scheme,
+			Log:         logrus.New(),
+			AgentClient: c,
 		}
 	})
 

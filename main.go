@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -30,6 +31,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -51,6 +53,8 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var watchNamespace string
+	var agentsNamespace string
+	var agentClient client.Client
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -58,6 +62,8 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&watchNamespace, "namespace", "",
 		"Namespace that the controller watches to reconcile cluster-api objects. If unspecified, the controller watches for cluster-api objects across all namespaces.")
+	flag.StringVar(&agentsNamespace, "agent-namespace", "",
+		"Namespace that the controller watches to list Agents objects. If unspecified, the controller watches for Agents objects across all namespaces.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -83,12 +89,38 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	agentClient = mgr.GetClient()
+
+	if agentsNamespace != "" {
+		setupLog.Info("Watching Agents objects only in namespace for reconciliation", "agent-namespace", agentsNamespace)
+		agentMgr, err2 := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			MetricsBindAddress: "0",
+			Scheme:             scheme,
+			LeaderElection:     false,
+			Namespace:          agentsNamespace,
+		})
+		if err2 != nil {
+			setupLog.Error(err, "unable to start Agent manager")
+			os.Exit(1)
+		}
+		agentClient = agentMgr.GetClient()
+		go func() {
+			setupLog.Info("starting Agent manager")
+			if err2 = agentMgr.Start(context.Background()); err2 != nil {
+				setupLog.Error(err, "problem running Agent manager")
+				os.Exit(1)
+			}
+		}()
+	}
+
 	logger := logrus.New()
 	logger.SetReportCaller(true)
 	if err = (&controllers.AgentMachineReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Log:    logger,
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		Log:         logger,
+		AgentClient: agentClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AgentMachine")
 		os.Exit(1)
