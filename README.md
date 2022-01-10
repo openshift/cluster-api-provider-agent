@@ -34,6 +34,19 @@ Deploy cluster-api-provider-agent to your cluster:
 make deploy IMG=<your docker repository>:`git log -1 --short`
 ```
 
+### Installing namespace-scoped cluster-api-provider-agent
+You can configure the provider to watch and manages AgentClusters and AgentMachines in a single Namespace.
+You can also configure the provider to watch and use Agents from a different namespace.
+Build the cluster-api-provider-agent image and push it to a container image repository:
+
+Deploy cluster-api-provider-agent to your cluster:
+
+```shell
+make deploy IMG=<your docker repository>:`git log -1 --short` WATCH_NAMESPACE=foo AGENTS_NAMESPACE=bar
+```
+In case you are using namespace-scoped provider you will need to create Role-Based Access Control (RBAC) permissions
+to give the provider permissions to access the resources see example [here](docs/namespaced-operator-permissions.md)
+
 ## Design
 cluster-api-provider-agent utilizes the [Infrastructure Operator](https://github.com/openshift/assisted-service) for adjusting the amount of workers in an OpenShift cluster. The CRDs that it manages are:
  * AgentCluster
