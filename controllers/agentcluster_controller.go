@@ -74,11 +74,13 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.WithError(err).Error("Failed to get ClusterDeployment")
 		return ctrl.Result{Requeue: true}, err
 	}
-	if clusterDeployment.Spec.ClusterInstallRef == nil {
-		return r.SetAgentClusterInstallRef(ctx, log, clusterDeployment)
+
+	result, err := r.ensureAgentClusterInstall(ctx, log, clusterDeployment)
+	if err != nil {
+		return result, err
 	}
 
-	result, err := r.updateAgentClusterInstall(ctx, log, agentCluster, clusterDeployment)
+	result, err = r.updateAgentClusterInstall(ctx, log, agentCluster, clusterDeployment)
 	if err != nil {
 		return result, err
 	}
@@ -145,6 +147,12 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 			Platform: hivev1.Platform{
 				AgentBareMetal: &agent.BareMetalPlatform{},
 			},
+			ClusterInstallRef: &hivev1.ClusterInstallLocalReference{
+				Kind:    "AgentClusterInstall",
+				Group:   hiveext.Group,
+				Version: hiveext.Version,
+				Name:    agentCluster.Name,
+			},
 		},
 	}
 	agentCluster.Status.ClusterDeploymentRef.Name = clusterDeployment.Name
@@ -160,7 +168,7 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 	return ctrl.Result{}, nil
 }
 
-func (r *AgentClusterReconciler) SetAgentClusterInstallRef(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment) (ctrl.Result, error) {
+func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment) (ctrl.Result, error) {
 	log.Info("Setting AgentClusterInstall")
 	agentClusterInstall := &hiveext.AgentClusterInstall{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: clusterDeployment.Namespace, Name: clusterDeployment.Name}, agentClusterInstall); err != nil {
@@ -174,18 +182,6 @@ func (r *AgentClusterReconciler) SetAgentClusterInstallRef(ctx context.Context, 
 			log.WithError(err).Error("Failed to get AgentClusterInstall")
 			return ctrl.Result{Requeue: true}, err
 		}
-	}
-	clusterDeployment.Spec.ClusterInstallRef = &hivev1.ClusterInstallLocalReference{
-		Kind:    "AgentClusterInstall",
-		Group:   hiveext.Group,
-		Version: hiveext.Version,
-		Name:    clusterDeployment.Name,
-	}
-
-	if err := r.Update(ctx, clusterDeployment); err != nil {
-		log.WithError(err).Error("Failed to update ClusterInstallRef on clusterDeployment")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
-
 	}
 	return ctrl.Result{Requeue: true}, nil
 }
