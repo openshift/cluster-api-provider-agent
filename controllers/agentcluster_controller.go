@@ -225,7 +225,7 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 
 func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster) (ctrl.Result, error) {
 	controlPlane, err := r.getControlPlane(ctx, log, agentCluster)
-	if controlPlane == nil {
+	if err != nil || controlPlane == nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
@@ -234,11 +234,15 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 
 	agentCluster.Status.ClusterDeploymentRef.Name = clusterDeployment.Name
 	agentCluster.Status.ClusterDeploymentRef.Namespace = clusterDeployment.Namespace
-	if err := r.Client.Create(ctx, clusterDeployment); err != nil {
-		log.WithError(err).Error("Failed to create ClusterDeployment")
-		return ctrl.Result{Requeue: true}, nil
+	if err = r.Client.Create(ctx, clusterDeployment); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			log.Warn("ClusterDeployment already exists")
+		} else {
+			log.WithError(err).Error("Failed to create ClusterDeployment")
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
-	if err := r.Client.Status().Update(ctx, agentCluster); err != nil {
+	if err = r.Client.Status().Update(ctx, agentCluster); err != nil {
 		log.WithError(err).Error("Failed to update status")
 		return ctrl.Result{Requeue: true}, err
 	}
