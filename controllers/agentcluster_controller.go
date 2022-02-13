@@ -91,18 +91,19 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	result, err := r.ensureAgentClusterInstall(ctx, log, clusterDeployment)
-	if err != nil {
+	if err != nil || result.Requeue{
 		return result, err
 	}
 
-	result, err = r.updateAgentClusterInstall(ctx, log, agentCluster, clusterDeployment)
-	if err != nil {
-		return result, err
-	}
 	if !agentCluster.Spec.ControlPlaneEndpoint.IsValid() {
 		log.Info("Waiting for agentCluster controlPlaneEndpoint")
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, nil
 	}
+	result, err = r.updateAgentClusterInstall(ctx, log, agentCluster, clusterDeployment)
+	if err != nil {
+		return result, err
+	}
+
 	// If the agentCluster has references a ClusterDeployment, sync from its status
 	return r.updateClusterStatus(ctx, log, agentCluster)
 }
@@ -113,12 +114,6 @@ func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, 
 	if err != nil {
 		log.WithError(err).Error("Failed to get AgentClusterInstall")
 		return ctrl.Result{Requeue: true}, err
-	}
-	updateACI := false
-
-	if agentClusterInstall.Spec.ProvisionRequirements.ControlPlaneAgents < 1 {
-		agentClusterInstall.Spec.ProvisionRequirements.ControlPlaneAgents = 3
-		updateACI = true
 	}
 
 	if agentClusterInstall.Spec.IgnitionEndpoint == nil && agentCluster.Spec.IgnitionEndpoint != nil {
@@ -135,10 +130,6 @@ func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, 
 				Name:      agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Name,
 			}
 		}
-		updateACI = true
-	}
-
-	if updateACI {
 		if err = r.Client.Update(ctx, agentClusterInstall); err != nil {
 			log.WithError(err).Error("Failed to update agentClusterInstall")
 			return ctrl.Result{Requeue: true}, err
@@ -283,12 +274,13 @@ func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, 
 				log.WithError(err).Error("failed to create AgentClusterInstall")
 				return ctrl.Result{Requeue: true}, err
 			}
+			return ctrl.Result{Requeue: true}, nil
 		} else {
 			log.WithError(err).Error("Failed to get AgentClusterInstall")
 			return ctrl.Result{Requeue: true}, err
 		}
 	}
-	return ctrl.Result{Requeue: true}, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment) error {
@@ -300,6 +292,9 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 		},
 		Spec: hiveext.AgentClusterInstallSpec{
 			ClusterDeploymentRef: corev1.LocalObjectReference{Name: clusterDeployment.Name},
+			ProvisionRequirements: hiveext.ProvisionRequirements{
+				ControlPlaneAgents: 3,
+			},
 		},
 	}
 	return r.Client.Create(ctx, agentClusterInstall)
