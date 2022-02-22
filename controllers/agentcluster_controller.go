@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/cluster-api/controllers/external"
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,9 +41,8 @@ import (
 // AgentClusterReconciler reconciles a AgentCluster object
 type AgentClusterReconciler struct {
 	client.Client
-	Scheme          *runtime.Scheme
-	Log             logrus.FieldLogger
-	externalTracker external.ObjectTracker
+	Scheme *runtime.Scheme
+	Log    logrus.FieldLogger
 }
 
 type ControlPlane struct {
@@ -139,21 +137,23 @@ func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, 
 	return ctrl.Result{}, nil
 }
 
-func getNestedStringObject(obj *unstructured.Unstructured, baseFieldName string, fields ...string) (string, error) {
+func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructured, baseFieldName string, fields ...string) (string, bool, error) {
 	value, ok, err := unstructured.NestedString(obj.UnstructuredContent(), fields...)
 	if err != nil {
-		return value, errors.Wrap(err, fmt.Sprintf("failed to get %s", baseFieldName))
+		err = errors.Wrap(err, fmt.Sprintf("failed to get %s", baseFieldName))
+		log.Error(err)
+		return value, ok, err
 	}
 	if !ok {
-		return value, errors.Errorf("No %s was found", baseFieldName)
+		log.Infof("%s not found", baseFieldName)
+		return value, ok, err
 	}
-	return value, nil
+	return value, ok, nil
 }
 
 func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus.FieldLogger,
 	agentCluster *capiproviderv1alpha1.AgentCluster) (*ControlPlane, error) {
 
-	var controlPlane ControlPlane
 	log.Info("Getting control plane")
 	// Fetch the CAPI Cluster.
 	cluster, err := clusterutilv1.GetOwnerCluster(ctx, r.Client, agentCluster.ObjectMeta)
@@ -176,23 +176,26 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 		return nil, errors.Wrapf(err, "failed to retrieve %s external object %q/%q", obj.GetKind(), key.Namespace, key.Name)
 	}
 
-	controlPlane.BaseDomain, err = getNestedStringObject(obj, "base domain", "spec", "dns", "baseDomain")
-	if err != nil {
+	var ok bool
+	var controlPlane ControlPlane
+
+	controlPlane.BaseDomain, ok, err = getNestedStringObject(log, obj, "base domain", "spec", "dns", "baseDomain")
+	if err != nil || !ok {
 		return nil, err
 	}
 
-	controlPlane.PullSecret, err = getNestedStringObject(obj, "pull secret name", "spec", "pullSecret", "name")
-	if err != nil {
+	controlPlane.PullSecret, ok, err = getNestedStringObject(log, obj, "pull secret name", "spec", "pullSecret", "name")
+	if err != nil || !ok {
 		return nil, err
 	}
 
-	controlPlane.KubeConfig, err = getNestedStringObject(obj, "kubeconfig", "status", "kubeConfig", "name")
-	if err != nil {
+	controlPlane.KubeConfig, ok, err = getNestedStringObject(log, obj, "kubeconfig", "status", "kubeConfig", "name")
+	if err != nil || !ok {
 		return nil, err
 	}
 
-	controlPlane.KubeadminPassword, err = getNestedStringObject(obj, "kubeadmin password", "status", "kubeadminPassword", "name")
-	if err != nil {
+	controlPlane.KubeadminPassword, ok, err = getNestedStringObject(log, obj, "kubeadmin password", "status", "kubeadminPassword", "name")
+	if err != nil || !ok {
 		return nil, err
 	}
 
@@ -241,7 +244,7 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster) (ctrl.Result, error) {
 	controlPlane, err := r.getControlPlane(ctx, log, agentCluster)
 	if err != nil || controlPlane == nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeueAfterOnError}, err
 	}
 
 	log.Info("Creating clusterDeployment")
@@ -314,13 +317,7 @@ func (r *AgentClusterReconciler) updateClusterStatus(ctx context.Context, log lo
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	controller, err := ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).
 		For(&capiproviderv1alpha1.AgentCluster{}).
-		Build(r)
-
-	r.externalTracker = external.ObjectTracker{
-		Controller: controller,
-	}
-
-	return err
+		Complete(r)
 }

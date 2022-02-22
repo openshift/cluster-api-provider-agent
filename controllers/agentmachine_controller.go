@@ -111,6 +111,10 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 	}
 
+	if agentCluster.Status.ClusterDeploymentRef.Name == "" {
+		return ctrl.Result{RequeueAfter: defaultRequeueWaitingForAvailableAgent}, nil
+	}
+
 	machineConfigPool, ignitionTokenSecretRef, err := r.processBootstrapDataSecret(ctx, log, machine)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err

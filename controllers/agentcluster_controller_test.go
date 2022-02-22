@@ -79,7 +79,8 @@ func newCluster(namespacedName *types.NamespacedName) *clusterv1.Cluster {
 }
 
 func createControlPlane(namespacedName *types.NamespacedName, baseDomain, pullSecretName, kubeconfig, kubeadminPassword string) *unstructured.Unstructured {
-	return &unstructured.Unstructured{
+
+	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"kind":       "HostedControlPlane",
 			"apiVersion": schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
@@ -97,16 +98,22 @@ func createControlPlane(namespacedName *types.NamespacedName, baseDomain, pullSe
 			},
 			"status": map[string]interface{}{
 				"externalManagedControlPlane": true,
-				"kubeConfig": map[string]interface{}{
-					"name": kubeconfig,
-					"key":  "kubeconfig",
-				},
 				"kubeadminPassword": map[string]interface{}{
 					"name": kubeadminPassword,
 				},
 			},
-		},
+		}}
+
+	if kubeconfig != "" {
+		kubeconfigMap := map[string]interface{}{
+			"name": kubeconfig,
+			"key":  "kubeconfig",
+		}
+		err := unstructured.SetNestedMap(obj.UnstructuredContent(), kubeconfigMap, "status", "kubeConfig")
+		Expect(err).To(BeNil())
 	}
+
+	return obj
 }
 
 func createDefaultResources(ctx context.Context, c client.Client, clusterName, testNamespace, baseDomain, pullSecretName, kubeconfig, kubeadminPassword string) *capiproviderv1alpha1.AgentCluster {
@@ -173,6 +180,15 @@ var _ = Describe("agentcluster reconcile", func() {
 		Expect(err).To(BeNil())
 		Expect(result).To(Equal(ctrl.Result{}))
 	})
+	It("no kubeconfig", func() {
+		agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, "", kubeadminPassword)
+		agentCluster.Status.Ready = true
+		Expect(c.Update(ctx, agentCluster)).To(BeNil())
+
+		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
+		Expect(err).To(BeNil())
+		Expect(result).To(Equal(ctrl.Result{Requeue: true, RequeueAfter: defaultRequeueAfterOnError}))
+	})
 	It("create clusterDeployment for agentCluster", func() {
 		agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
@@ -205,7 +221,7 @@ var _ = Describe("agentcluster reconcile", func() {
 		Expect(c.Create(ctx, agentCluster)).To(BeNil())
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{Requeue: true}))
+		Expect(result).To(Equal(ctrl.Result{Requeue: true, RequeueAfter: defaultRequeueAfterOnError}))
 	})
 	It("no control plane reference in cluster", func() {
 		clusterName := "test-cluster-name"
@@ -222,7 +238,7 @@ var _ = Describe("agentcluster reconcile", func() {
 		Expect(c.Create(ctx, cluster)).To(BeNil())
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{Requeue: true}))
+		Expect(result).To(Equal(ctrl.Result{Requeue: true, RequeueAfter: defaultRequeueAfterOnError}))
 
 	})
 
