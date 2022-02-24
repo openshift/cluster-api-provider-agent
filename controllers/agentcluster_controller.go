@@ -89,7 +89,7 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	result, err := r.ensureAgentClusterInstall(ctx, log, clusterDeployment)
-	if err != nil || result.Requeue{
+	if err != nil || result.Requeue {
 		return result, err
 	}
 
@@ -210,6 +210,12 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      agentCluster.Name,
 			Namespace: agentCluster.Namespace,
+			OwnerReferences: []metav1.OwnerReference{{
+				Kind:       agentCluster.Kind,
+				APIVersion: agentCluster.APIVersion,
+				Name:       agentCluster.Name,
+				UID:        agentCluster.UID,
+			}},
 		},
 		Spec: hivev1.ClusterDeploymentSpec{
 			Installed:   true,

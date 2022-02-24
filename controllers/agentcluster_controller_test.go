@@ -212,6 +212,10 @@ var _ = Describe("agentcluster reconcile", func() {
 		Expect(clusterDeployment.Spec.ClusterMetadata.AdminKubeconfigSecretRef.Name).To(Equal(kubeconfig))
 		Expect(clusterDeployment.Spec.ClusterMetadata.ClusterID).To(Equal(string(agentCluster.OwnerReferences[0].UID)))
 		Expect(clusterDeployment.Spec.ClusterMetadata.InfraID).To(Equal(string(agentCluster.OwnerReferences[0].UID)))
+		Expect(clusterDeployment.OwnerReferences[0].UID).To(Equal(agentCluster.UID))
+		Expect(clusterDeployment.OwnerReferences[0].Name).To(Equal(agentCluster.Name))
+		Expect(clusterDeployment.OwnerReferences[0].Kind).To(Equal(agentCluster.Kind))
+		Expect(clusterDeployment.OwnerReferences[0].APIVersion).To(Equal(agentCluster.APIVersion))
 
 	})
 	It("failed to find cluster", func() {
