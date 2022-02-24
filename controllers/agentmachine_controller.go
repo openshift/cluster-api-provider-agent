@@ -167,6 +167,8 @@ func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, lo
 						return &ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
 					}
 				} else {
+					// Remove the AgentMachineRefLabel and set the clusterDeployment to nil
+					delete(agent.ObjectMeta.Labels, AgentMachineRefLabelKey)
 					agent.Spec.ClusterDeploymentName = nil
 					if err := r.Update(ctx, agent); err != nil {
 						log.WithError(err).Error("failed to remove the Agent's ClusterDeployment ref")
