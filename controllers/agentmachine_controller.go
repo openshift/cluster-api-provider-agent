@@ -422,13 +422,6 @@ func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1alpha1.Age
 		}
 	}
 
-	if agent.Status.Inventory.Cpu.Count < int64(agentMachine.Spec.MinCPUs) {
-		return false
-	}
-	if int(agent.Status.Inventory.Memory.PhysicalBytes/1024/1024) < int(agentMachine.Spec.MinMemoryMiB) {
-		return false
-	}
-
 	return true
 }
 
