@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	k8sutilspointer "k8s.io/utils/pointer"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -188,6 +189,9 @@ func newAgentWithProperties(name, namespace string, approved, bound, validated b
 	agent := newAgent(name, namespace, aiv1beta1.AgentSpec{Approved: approved})
 	agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: boolToConditionStatus(bound)})
 	agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: boolToConditionStatus(validated)})
+	agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.SpecSyncedCondition, Status: boolToConditionStatus(true)})
+	agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.RequirementsMetCondition, Status: boolToConditionStatus(validated)})
+	agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.InstalledCondition, Status: boolToConditionStatus(false), Reason: aiv1beta1.InstallationNotStartedMsg, Message: ""})
 	agent.ObjectMeta.SetLabels(labels)
 	return agent
 }
@@ -223,6 +227,8 @@ var _ = Describe("agentmachine reconcile", func() {
 			ClusterDeploymentName:          &aiv1beta1.ClusterReference{Namespace: testNamespace, Name: "dep"}})
 		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: "True"})
 		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: "True"})
+		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.SpecSyncedCondition, Status: "True"})
+		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.RequirementsMetCondition, Status: "True"})
 		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.InstalledCondition, Status: "True"})
 		Expect(c.Create(ctx, agent)).To(BeNil())
 
@@ -236,6 +242,9 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(BeNil())
 		Expect(agentMachine.Status.Ready).To(BeEquivalentTo(true))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("True"))
 	})
 
 	It("agentMachine no agents", func() {
@@ -251,6 +260,16 @@ var _ = Describe("agentmachine reconcile", func() {
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
 		Expect(err).To(BeNil())
 		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeueWaitingForAvailableAgent}))
+
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-0"}, agentMachine)).To(BeNil())
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Reason).To(Equal(capiproviderv1alpha1.NoSuitableAgentsReason))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentValidatedCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
+		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("False"))
 	})
 
 	It("agentMachine find agent end-to-end", func() {
@@ -286,9 +305,17 @@ var _ = Describe("agentmachine reconcile", func() {
 		// find agent
 		result, err := amr.Reconcile(ctx, agentMachineRequest)
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{Requeue: true}))
+		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeueWaitingForAgentToBeInstalled}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine"}, agentMachine)).To(BeNil())
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentValidatedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
+		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("False"))
+
 		Expect(agentMachine.Status.AgentRef.Name).To(BeEquivalentTo("agent-9"))
 		Expect(len(agentMachine.Status.Addresses)).To(BeEquivalentTo(4))
 		expectedAddresses := []string{"1.2.3.4", "2.3.4.5", "3.4.5.6", "agent-hostname"}
@@ -323,7 +350,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		result, err := amr.Reconcile(ctx, agentMachineRequest)
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{Requeue: true}))
+		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeueWaitingForAgentToBeInstalled}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(BeNil())
 		Expect(agentMachine.Status.AgentRef.Name).To(BeEquivalentTo("agent-1"))
