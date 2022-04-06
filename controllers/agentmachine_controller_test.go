@@ -259,7 +259,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeueWaitingForAvailableAgent}))
+		Expect(result).To(Equal(ctrl.Result{}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-0"}, agentMachine)).To(BeNil())
 		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Status).To(BeEquivalentTo("False"))
@@ -305,7 +305,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		// find agent
 		result, err := amr.Reconcile(ctx, agentMachineRequest)
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeueWaitingForAgentToBeInstalled}))
+		Expect(result).To(Equal(ctrl.Result{}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine"}, agentMachine)).To(BeNil())
 		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
@@ -350,7 +350,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		result, err := amr.Reconcile(ctx, agentMachineRequest)
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeueWaitingForAgentToBeInstalled}))
+		Expect(result).To(Equal(ctrl.Result{}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(BeNil())
 		Expect(agentMachine.Status.AgentRef.Name).To(BeEquivalentTo("agent-1"))

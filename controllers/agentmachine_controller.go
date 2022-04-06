@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	ignitionapi "github.com/coreos/ignition/v2/config/v3_1/types"
 	"github.com/go-openapi/swag"
@@ -45,14 +44,15 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
-	defaultRequeueAfterOnError                 = 10 * time.Second
-	defaultRequeueWaitingForAgentToBeInstalled = 20 * time.Second
-	defaultRequeueWaitingForAvailableAgent     = 30 * time.Second
-	AgentMachineFinalizerName                  = "agentmachine." + aiv1beta1.Group + "/deprovision"
-	AgentMachineRefLabelKey                    = "agentMachineRef"
+	AgentMachineFinalizerName = "agentmachine." + aiv1beta1.Group + "/deprovision"
+	AgentMachineRefLabelKey   = "agentMachineRef"
+	AgentMachineRefNamespace  = "agentMachineRefNamespace"
 )
 
 // AgentMachineReconciler reconciles a AgentMachine object
@@ -101,46 +101,44 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	machine, err := clusterutil.GetOwnerMachine(ctx, r.Client, agentMachine.ObjectMeta)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		log.WithError(err).Error("failed to get owner machine")
+		return ctrl.Result{}, err
 	}
 	if machine == nil {
 		log.Info("Waiting for Machine Controller to set OwnerRef on AgentMachine")
-		return r.updateStatus(ctx, log, agentMachine, ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, nil)
+		return r.updateStatus(ctx, log, agentMachine, ctrl.Result{}, fmt.Errorf("agent machine has no owner reference"))
 	}
 
 	agentCluster, err := r.getAgentCluster(ctx, log, machine)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return ctrl.Result{}, err
 	}
 
 	if agentCluster.Status.ClusterDeploymentRef.Name == "" {
-		return r.updateStatus(ctx, log, agentMachine, ctrl.Result{RequeueAfter: defaultRequeueWaitingForAvailableAgent}, nil)
+		return r.updateStatus(ctx, log, agentMachine, ctrl.Result{}, fmt.Errorf("No cluster deployment reference on agentCluster %s", agentCluster.GetName()))
 	}
 
 	machineConfigPool, ignitionTokenSecretRef, err := r.processBootstrapDataSecret(ctx, log, machine)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return ctrl.Result{}, err
 	}
 
 	// If the AgentMachine doesn't have an agent, find one and set the agentRef
 	if agentMachine.Status.AgentRef == nil {
-		foundAgent, result, err := r.findAgent(ctx, log, agentMachine, agentCluster.Status.ClusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef)
-		if err != nil || foundAgent == nil {
-			// Update the status, err == nil indicates that we didn't find an agent because one didn't exist, not due to a retryable error
-			return r.updateStatus(ctx, log, agentMachine, result, err)
+		foundAgent, err := r.findAgent(ctx, log, agentMachine, agentCluster.Status.ClusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef)
+		if foundAgent == nil || err != nil {
+			return r.updateStatus(ctx, log, agentMachine, ctrl.Result{}, err)
 		}
 
 		err = r.updateAgentMachineWithFoundAgent(ctx, log, agentMachine, foundAgent)
 		if err != nil {
 			log.WithError(err).Error("failed to update AgentMachine with found agent")
-			return r.updateStatus(ctx, log, agentMachine, ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err)
-		} else {
-			return r.updateStatus(ctx, log, agentMachine, ctrl.Result{Requeue: true}, nil)
+			return r.updateStatus(ctx, log, agentMachine, ctrl.Result{}, err)
 		}
 	}
 
 	// If the AgentMachine has an agent, check its conditions and update ready/error
-	return r.updateStatus(ctx, log, agentMachine, ctrl.Result{Requeue: true}, nil)
+	return r.updateStatus(ctx, log, agentMachine, ctrl.Result{}, nil)
 }
 
 func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) (*ctrl.Result, error) {
@@ -150,7 +148,7 @@ func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, lo
 			controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
 			if err := r.Update(ctx, agentMachine); err != nil {
 				log.WithError(err).Errorf("failed to add finalizer %s to resource %s %s", AgentMachineFinalizerName, agentMachine.Name, agentMachine.Namespace)
-				return &ctrl.Result{Requeue: true}, err
+				return &ctrl.Result{}, err
 			}
 		}
 	} else { // AgentMachine is being deleted
@@ -165,7 +163,7 @@ func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, lo
 						log.WithError(err).Infof("Failed to get agent %s. assuming the agent no longer exists", agentMachine.Status.AgentRef.Name)
 					} else {
 						log.WithError(err).Errorf("Failed to get agent %s", agentMachine.Status.AgentRef.Name)
-						return &ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+						return &ctrl.Result{}, err
 					}
 				} else {
 					// Remove the AgentMachineRefLabel and set the clusterDeployment to nil
@@ -173,7 +171,7 @@ func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, lo
 					agent.Spec.ClusterDeploymentName = nil
 					if err := r.Update(ctx, agent); err != nil {
 						log.WithError(err).Error("failed to remove the Agent's ClusterDeployment ref")
-						return &ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+						return &ctrl.Result{}, err
 					}
 				}
 			}
@@ -182,7 +180,7 @@ func (r *AgentMachineReconciler) handleDeletionFinalizer(ctx context.Context, lo
 			controllerutil.RemoveFinalizer(agentMachine, AgentMachineFinalizerName)
 			if err := r.Update(ctx, agentMachine); err != nil {
 				log.WithError(err).Errorf("failed to remove finalizer %s from resource %s %s", AgentMachineFinalizerName, agentMachine.Name, agentMachine.Namespace)
-				return &ctrl.Result{Requeue: true}, err
+				return &ctrl.Result{}, err
 			}
 		}
 		r.Log.Info("AgentMachine is ready for deletion")
@@ -212,16 +210,16 @@ func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus
 
 func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine,
 	clusterDeploymentRef capiproviderv1alpha1.ClusterDeploymentReference, machineConfigPool string,
-	ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference) (*aiv1beta1.Agent, ctrl.Result, error) {
+	ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference) (*aiv1beta1.Agent, error) {
 
 	foundAgent, err := r.findAgentWithAgentMachineLabel(ctx, log, agentMachine)
 	if err != nil {
 		log.WithError(err).Error("failed while finding agents")
-		return nil, ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return nil, err
 	}
 	if foundAgent != nil {
 		log.Infof("Found agent with AgentMachine label: %s/%s", foundAgent.Namespace, foundAgent.Name)
-		return foundAgent, ctrl.Result{Requeue: true}, nil
+		return foundAgent, nil
 	}
 
 	var selector labels.Selector
@@ -229,7 +227,7 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 		selector, err = metav1.LabelSelectorAsSelector(agentMachine.Spec.AgentLabelSelector)
 		if err != nil {
 			log.WithError(err).Error("failed to convert label selector to selector")
-			return nil, ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+			return nil, err
 		}
 	} else {
 		selector = labels.NewSelector()
@@ -240,7 +238,7 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 	agents := &aiv1beta1.AgentList{}
 	if err = r.AgentClient.List(ctx, agents, &client.ListOptions{LabelSelector: selector}); err != nil {
 		log.WithError(err).Error("failed to list agents")
-		return nil, ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return nil, err
 	}
 
 	// Find an agent that is unbound and whose validations pass
@@ -261,10 +259,10 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 
 	if foundAgent == nil {
 		log.Info("Failed to own any available Agent")
-		return nil, ctrl.Result{RequeueAfter: defaultRequeueWaitingForAvailableAgent}, nil
+		return nil, nil
 	}
 
-	return foundAgent, ctrl.Result{Requeue: true}, nil
+	return foundAgent, nil
 }
 
 func getAgentMachineRefLabel(agentMachine *capiproviderv1alpha1.AgentMachine) string {
@@ -323,7 +321,11 @@ func (r *AgentMachineReconciler) updateFoundAgent(ctx context.Context, log logru
 	if agent.ObjectMeta.Labels == nil {
 		agent.ObjectMeta.Labels = make(map[string]string)
 	}
+	if agent.ObjectMeta.Annotations == nil {
+		agent.ObjectMeta.Annotations = make(map[string]string)
+	}
 	agent.ObjectMeta.Labels[AgentMachineRefLabelKey] = getAgentMachineRefLabel(agentMachine)
+	agent.ObjectMeta.Annotations[AgentMachineRefNamespace] = agentMachine.GetNamespace()
 	agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{Namespace: clusterDeploymentRef.Namespace, Name: clusterDeploymentRef.Name}
 	agent.Spec.MachineConfigPool = machineConfigPool
 	agent.Spec.IgnitionEndpointTokenReference = ignitionTokenSecretRef
@@ -435,7 +437,7 @@ func (r *AgentMachineReconciler) updateStatus(ctx context.Context, log logrus.Fi
 
 	agent, err := r.getAgent(ctx, log, agentMachine)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, err
+		return ctrl.Result{}, err
 	}
 
 	setConditionByAgentCondition(agentMachine, agent, capiproviderv1alpha1.AgentSpecSyncedCondition, aiv1beta1.SpecSyncedCondition, clusterv1.ConditionSeverityError)
@@ -504,14 +506,7 @@ func (r *AgentMachineReconciler) setStatus(ctx context.Context, log logrus.Field
 
 	if updateErr := r.Status().Update(ctx, agentMachine); updateErr != nil {
 		log.WithError(updateErr).Error("failed to update AgentMachine Status")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, nil
-	}
-	if agentMachine.Status.Ready {
-		// No need to requeue in case the agentMachine is ready
-		return ctrl.Result{}, nil
-	}
-	if installationInProgress && origErr == nil {
-		return ctrl.Result{RequeueAfter: defaultRequeueWaitingForAgentToBeInstalled}, nil
+		return ctrl.Result{}, updateErr
 	}
 
 	return origRes, origErr
@@ -544,8 +539,43 @@ func getAddresses(foundAgent *aiv1beta1.Agent) []clusterv1.MachineAddress {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespace string) error {
+	mapAgentToAgentMachine := func(agent client.Object) []reconcile.Request {
+		log := r.Log.WithFields(
+			logrus.Fields{
+				"agent":           agent.GetName(),
+				"agent_namespace": agent.GetNamespace(),
+			})
+
+		namespace, ok := agent.GetAnnotations()[AgentMachineRefNamespace]
+		if !ok {
+			return make([]reconcile.Request, 0)
+		}
+
+		amList := &capiproviderv1alpha1.AgentMachineList{}
+		opts := &client.ListOptions{
+			Namespace: namespace,
+		}
+		if err := r.List(context.Background(), amList, opts); err != nil {
+			log.Debugf("failed to list agent machines")
+			return []reconcile.Request{}
+		}
+
+		reply := make([]reconcile.Request, 0, len(amList.Items))
+		for _, agentMachine := range amList.Items {
+			if agentMachine.Status.AgentRef != nil && agentMachine.Status.AgentRef.Namespace == agent.GetNamespace() && agentMachine.Status.AgentRef.Name == agent.GetName() {
+				reply = append(reply, reconcile.Request{NamespacedName: types.NamespacedName{
+					Namespace: agentMachine.Namespace,
+					Name:      agentMachine.Name,
+				}})
+				break
+			}
+		}
+		return reply
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capiproviderv1alpha1.AgentMachine{}).
+		Watches(&source.Kind{Type: &aiv1beta1.Agent{}}, handler.EnqueueRequestsFromMapFunc(mapAgentToAgentMachine)).
 		Complete(r)
 }

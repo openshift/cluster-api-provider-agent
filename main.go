@@ -21,9 +21,11 @@ import (
 	"flag"
 	"os"
 
+	aiv1beta1 "github.com/openshift/assisted-service/api/v1beta1"
 	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	"github.com/openshift/cluster-api-provider-agent/controllers"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -31,6 +33,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -83,7 +86,12 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "7605f49b.agent-install.openshift.io",
-		Namespace:              watchNamespace,
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			DefaultSelector: cache.ObjectSelector{Field: fields.OneTermEqualSelector("metadata.namespace", watchNamespace)},
+			SelectorsByObject: cache.SelectorsByObject{
+				&aiv1beta1.Agent{}: {Field: fields.OneTermEqualSelector("metadata.namespace", agentsNamespace)},
+			},
+		}),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -121,7 +129,7 @@ func main() {
 		Scheme:      mgr.GetScheme(),
 		Log:         logger,
 		AgentClient: agentClient,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, agentsNamespace); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AgentMachine")
 		os.Exit(1)
 	}
