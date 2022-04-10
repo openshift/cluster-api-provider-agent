@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
 	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
@@ -36,6 +37,10 @@ import (
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	defaultRequeueAfterOnError = 10 * time.Second
 )
 
 // AgentClusterReconciler reconciles a AgentCluster object
