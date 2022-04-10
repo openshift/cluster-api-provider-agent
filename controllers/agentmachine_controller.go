@@ -106,7 +106,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	if machine == nil {
 		log.Info("Waiting for Machine Controller to set OwnerRef on AgentMachine")
-		return r.updateStatus(ctx, log, agentMachine, ctrl.Result{}, fmt.Errorf("agent machine has no owner reference"))
+		return r.updateStatus(ctx, log, agentMachine, ctrl.Result{}, nil)
 	}
 
 	agentCluster, err := r.getAgentCluster(ctx, log, machine)

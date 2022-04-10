@@ -187,7 +187,7 @@ var _ = Describe("agentcluster reconcile", func() {
 
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{Requeue: true, RequeueAfter: defaultRequeueAfterOnError}))
+		Expect(result).To(Equal(ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}))
 	})
 	It("create clusterDeployment for agentCluster", func() {
 		agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
@@ -225,7 +225,7 @@ var _ = Describe("agentcluster reconcile", func() {
 		Expect(c.Create(ctx, agentCluster)).To(BeNil())
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{Requeue: true, RequeueAfter: defaultRequeueAfterOnError}))
+		Expect(result).To(Equal(ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}))
 	})
 	It("no control plane reference in cluster", func() {
 		clusterName := "test-cluster-name"
@@ -242,7 +242,7 @@ var _ = Describe("agentcluster reconcile", func() {
 		Expect(c.Create(ctx, cluster)).To(BeNil())
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{Requeue: true, RequeueAfter: defaultRequeueAfterOnError}))
+		Expect(result).To(Equal(ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}))
 
 	})
 
@@ -256,7 +256,7 @@ var _ = Describe("agentcluster reconcile", func() {
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
 		Expect(err).ToNot(BeNil())
 		Expect(err.Error()).To(MatchRegexp("not found"))
-		Expect(result).To(Equal(ctrl.Result{Requeue: true}))
+		Expect(result).To(Equal(ctrl.Result{}))
 	})
 	It("create AgentClusterInstall for agentCluster", func() {
 		agentCluster := createDefaultResources(ctx, c, "agentCluster-1", testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
@@ -288,7 +288,7 @@ var _ = Describe("agentcluster reconcile", func() {
 
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}))
+		Expect(result).To(Equal(ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}))
 	})
 })
 
