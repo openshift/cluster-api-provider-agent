@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	defaultRequeueAfterOnError = 10 * time.Second
+	agentClusterDependenciesWaitTime = 5 * time.Second
 )
 
 // AgentClusterReconciler reconciles a AgentCluster object
@@ -90,33 +90,37 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Status.ClusterDeploymentRef.Namespace, Name: agentCluster.Status.ClusterDeploymentRef.Name}, clusterDeployment)
 	if err != nil {
 		log.WithError(err).Error("Failed to get ClusterDeployment")
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
-	result, err := r.ensureAgentClusterInstall(ctx, log, clusterDeployment)
-	if err != nil || result.Requeue {
-		return result, err
+	aciCreated, err := r.ensureAgentClusterInstall(ctx, log, clusterDeployment)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if aciCreated {
+		// If we just created the ACI, requeue with a fresh copy of the ClusterDeployment
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	if !agentCluster.Spec.ControlPlaneEndpoint.IsValid() {
 		log.Info("Waiting for agentCluster controlPlaneEndpoint")
-		return ctrl.Result{RequeueAfter: defaultRequeueAfterOnError}, nil
+		return ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}, nil
 	}
-	result, err = r.updateAgentClusterInstall(ctx, log, agentCluster, clusterDeployment)
+	err = r.updateAgentClusterInstall(ctx, log, agentCluster, clusterDeployment)
 	if err != nil {
-		return result, err
+		return ctrl.Result{}, err
 	}
 
 	// If the agentCluster has references a ClusterDeployment, sync from its status
 	return r.updateClusterStatus(ctx, log, agentCluster)
 }
 
-func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster, clusterDeployment *hivev1.ClusterDeployment) (ctrl.Result, error) {
+func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster, clusterDeployment *hivev1.ClusterDeployment) error {
 	agentClusterInstall := &hiveext.AgentClusterInstall{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Status.ClusterDeploymentRef.Namespace, Name: clusterDeployment.Spec.ClusterInstallRef.Name}, agentClusterInstall)
 	if err != nil {
 		log.WithError(err).Error("Failed to get AgentClusterInstall")
-		return ctrl.Result{Requeue: true}, err
+		return err
 	}
 
 	if agentClusterInstall.Spec.IgnitionEndpoint == nil && agentCluster.Spec.IgnitionEndpoint != nil {
@@ -135,11 +139,11 @@ func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, 
 		}
 		if err = r.Client.Update(ctx, agentClusterInstall); err != nil {
 			log.WithError(err).Error("Failed to update agentClusterInstall")
-			return ctrl.Result{Requeue: true}, err
+			return err
 		}
 	}
 
-	return ctrl.Result{}, nil
+	return nil
 }
 
 func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructured, baseFieldName string, fields ...string) (string, bool, error) {
@@ -255,7 +259,7 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster) (ctrl.Result, error) {
 	controlPlane, err := r.getControlPlane(ctx, log, agentCluster)
 	if err != nil || controlPlane == nil {
-		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeueAfterOnError}, err
+		return ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}, err
 	}
 
 	log.Info("Creating clusterDeployment")
@@ -268,17 +272,17 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 			log.Warn("ClusterDeployment already exists")
 		} else {
 			log.WithError(err).Error("Failed to create ClusterDeployment")
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{}, err
 		}
 	}
 	if err = r.Client.Status().Update(ctx, agentCluster); err != nil {
 		log.WithError(err).Error("Failed to update status")
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
 
-func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment) (ctrl.Result, error) {
+func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment) (bool, error) {
 	log.Info("Setting AgentClusterInstall")
 	agentClusterInstall := &hiveext.AgentClusterInstall{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: clusterDeployment.Namespace, Name: clusterDeployment.Name}, agentClusterInstall); err != nil {
@@ -286,15 +290,15 @@ func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, 
 			err = r.createAgentClusterInstall(ctx, log, clusterDeployment)
 			if err != nil {
 				log.WithError(err).Error("failed to create AgentClusterInstall")
-				return ctrl.Result{Requeue: true}, err
+				return false, err
 			}
-			return ctrl.Result{Requeue: true}, nil
+			return true, nil
 		} else {
 			log.WithError(err).Error("Failed to get AgentClusterInstall")
-			return ctrl.Result{Requeue: true}, err
+			return false, err
 		}
 	}
-	return ctrl.Result{}, nil
+	return false, nil
 }
 
 func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment) error {
@@ -320,7 +324,7 @@ func (r *AgentClusterReconciler) updateClusterStatus(ctx context.Context, log lo
 	agentCluster.Status.Ready = true
 	if err := r.Status().Update(ctx, agentCluster); err != nil {
 		log.WithError(err).Error("Failed to set ready status")
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{}, err
 
 	}
 	return ctrl.Result{}, nil
