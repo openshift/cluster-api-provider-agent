@@ -62,12 +62,12 @@ cluster-api-provider-agent utilizes the [Infrastructure Operator](https://github
 ## Drawbacks
 ### ProviderID controller
 In order to get the [cluster machine approver](https://github.com/openshift/cluster-machine-approver) to approve the *kubelet-serving* CSRs
-the cluster-apii-provider-agent implements a provider-id controller that set the ProviderID from the appropriate Machine and add it to the Node's Spec.
+the cluster-api-provider-agent implements a provider-id controller that set the ProviderID from the appropriate Machine and add it to the Node's Spec.
 This controller is a workaround in order to allow hands free e2e add hosts, it should be replaced by similar logic in the [Infrastructure Operator](https://github.com/openshift/assisted-service)
- 
+
 ## Status
 Until now this CAPI provider has been tested for resizing [HyperShift](https://github.com/openshift/hypershift) Hosted Clusters. It also has the following limitations:
- * The reprovisioning flow currently requires manually rebooting the host with the Discovery ISO.
+ * The re-provisioning flow currently requires manually rebooting the host with the Discovery ISO.
  * The CAPI provider does not yet have cluster lifecycle features - it adds and removes nodes from an existing cluster.
  * The CAPI provider currently selects the first free Agent that is approved and whose validations are passing. It will be smarter in the future.
 
