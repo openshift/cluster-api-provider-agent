@@ -205,7 +205,7 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 
 	controlPlane.KubeadminPassword, ok, err = getNestedStringObject(log, obj, "kubeadmin password", "status", "kubeadminPassword", "name")
 	if err != nil || !ok {
-		return nil, err
+		log.WithError(err).Info("Failed to get kubeadmin password")
 	}
 
 	controlPlane.ClusterName = cluster.Spec.ControlPlaneRef.Name
@@ -214,7 +214,12 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 
 func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *capiproviderv1alpha1.AgentCluster,
 	controlPlane *ControlPlane) *hivev1.ClusterDeployment {
-
+	var kubeadminPassword *corev1.LocalObjectReference
+	if controlPlane.KubeadminPassword != "" {
+		kubeadminPassword = &corev1.LocalObjectReference{
+			Name: controlPlane.KubeadminPassword,
+		}
+	}
 	clusterDeployment := &hivev1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      agentCluster.Name,
@@ -246,9 +251,7 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 				AdminKubeconfigSecretRef: corev1.LocalObjectReference{
 					Name: controlPlane.KubeConfig,
 				},
-				AdminPasswordSecretRef: &corev1.LocalObjectReference{
-					Name: controlPlane.KubeadminPassword,
-				},
+				AdminPasswordSecretRef: kubeadminPassword,
 			},
 		},
 	}
