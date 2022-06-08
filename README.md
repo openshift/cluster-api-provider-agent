@@ -35,7 +35,7 @@ make deploy IMG=<your docker repository>:`git log -1 --short`
 ```
 
 ### Installing namespace-scoped cluster-api-provider-agent
-You can configure the provider to watch and manages AgentClusters and AgentMachines in a single Namespace.
+You can configure the provider to watch and manage AgentClusters and AgentMachines in a single Namespace.
 You can also configure the provider to watch and use Agents from a different namespace.
 Build the cluster-api-provider-agent image and push it to a container image repository:
 
