@@ -93,57 +93,18 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	aciCreated, err := r.ensureAgentClusterInstall(ctx, log, clusterDeployment)
+	err = r.ensureAgentClusterInstall(ctx, log, clusterDeployment, agentCluster)
 	if err != nil {
 		return ctrl.Result{}, err
-	}
-	if aciCreated {
-		// If we just created the ACI, requeue with a fresh copy of the ClusterDeployment
-		return ctrl.Result{Requeue: true}, nil
 	}
 
 	if !agentCluster.Spec.ControlPlaneEndpoint.IsValid() {
 		log.Info("Waiting for agentCluster controlPlaneEndpoint")
 		return ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}, nil
 	}
-	err = r.updateAgentClusterInstall(ctx, log, agentCluster, clusterDeployment)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 
 	// If the agentCluster has references a ClusterDeployment, sync from its status
 	return r.updateClusterStatus(ctx, log, agentCluster)
-}
-
-func (r *AgentClusterReconciler) updateAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster, clusterDeployment *hivev1.ClusterDeployment) error {
-	agentClusterInstall := &hiveext.AgentClusterInstall{}
-	err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Status.ClusterDeploymentRef.Namespace, Name: clusterDeployment.Spec.ClusterInstallRef.Name}, agentClusterInstall)
-	if err != nil {
-		log.WithError(err).Error("Failed to get AgentClusterInstall")
-		return err
-	}
-
-	if agentClusterInstall.Spec.IgnitionEndpoint == nil && agentCluster.Spec.IgnitionEndpoint != nil {
-		log.Info("Updating ignition endpoint")
-		url := agentCluster.Spec.IgnitionEndpoint.Url
-		agentClusterInstall.Spec.IgnitionEndpoint = &hiveext.IgnitionEndpoint{
-			// Currently assume something like https://1.2.3.4:555/ignition, otherwise this will fail
-			// TODO: Replace with something more robust
-			Url: url[0:strings.LastIndex(url, "/")],
-		}
-		if agentCluster.Spec.IgnitionEndpoint.CaCertificateReference != nil {
-			agentClusterInstall.Spec.IgnitionEndpoint.CaCertificateReference = &hiveext.CaCertificateReference{
-				Namespace: agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Namespace,
-				Name:      agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Name,
-			}
-		}
-		if err = r.Client.Update(ctx, agentClusterInstall); err != nil {
-			log.WithError(err).Error("Failed to update agentClusterInstall")
-			return err
-		}
-	}
-
-	return nil
 }
 
 func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructured, baseFieldName string, fields ...string) (string, bool, error) {
@@ -285,26 +246,26 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 	return ctrl.Result{}, nil
 }
 
-func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment) (bool, error) {
+func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment, agentCluster *capiproviderv1alpha1.AgentCluster) error {
 	log.Info("Setting AgentClusterInstall")
 	agentClusterInstall := &hiveext.AgentClusterInstall{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: clusterDeployment.Namespace, Name: clusterDeployment.Name}, agentClusterInstall); err != nil {
 		if apierrors.IsNotFound(err) {
-			err = r.createAgentClusterInstall(ctx, log, clusterDeployment)
+			err = r.createAgentClusterInstall(ctx, log, clusterDeployment, agentCluster)
 			if err != nil {
 				log.WithError(err).Error("failed to create AgentClusterInstall")
-				return false, err
+				return err
 			}
-			return true, nil
+			return nil
 		} else {
-			log.WithError(err).Error("Failed to get AgentClusterInstall")
-			return false, err
+			log.WithError(err).Error("failed to get AgentClusterInstall")
+			return err
 		}
 	}
-	return false, nil
+	return nil
 }
 
-func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment) error {
+func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment, agentCluster *capiproviderv1alpha1.AgentCluster) error {
 	log.Infof("Creating AgentClusterInstall for clusterDeployment: %s %s", clusterDeployment.Namespace, clusterDeployment.Name)
 	agentClusterInstall := &hiveext.AgentClusterInstall{
 		ObjectMeta: metav1.ObjectMeta{
@@ -318,6 +279,23 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 			},
 		},
 	}
+
+	// IgnitionEndpoint can only be set at AgentClusterInstall create time
+	if agentCluster.Spec.IgnitionEndpoint != nil {
+		url := agentCluster.Spec.IgnitionEndpoint.Url
+		agentClusterInstall.Spec.IgnitionEndpoint = &hiveext.IgnitionEndpoint{
+			// Currently assume something like https://1.2.3.4:555/ignition, otherwise this will fail
+			// TODO: Replace with something more robust
+			Url: url[0:strings.LastIndex(url, "/")],
+		}
+		if agentCluster.Spec.IgnitionEndpoint.CaCertificateReference != nil {
+			agentClusterInstall.Spec.IgnitionEndpoint.CaCertificateReference = &hiveext.CaCertificateReference{
+				Namespace: agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Namespace,
+				Name:      agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Name,
+			}
+		}
+	}
+
 	return r.Client.Create(ctx, agentClusterInstall)
 }
 
