@@ -284,6 +284,7 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 	if agentCluster.Spec.IgnitionEndpoint != nil {
 		url := agentCluster.Spec.IgnitionEndpoint.Url
 		agentClusterInstall.Spec.IgnitionEndpoint = &hiveext.IgnitionEndpoint{
+			// just trying out the new branch configuration
 			// Currently assume something like https://1.2.3.4:555/ignition, otherwise this will fail
 			// TODO: Replace with something more robust
 			Url: url[0:strings.LastIndex(url, "/")],
