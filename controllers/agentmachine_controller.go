@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -538,6 +539,41 @@ func getAddresses(foundAgent *aiv1beta1.Agent) []clusterv1.MachineAddress {
 	return machineAddresses
 }
 
+func (r *AgentMachineReconciler) mapMachineToAgentMachine(machine client.Object) []reconcile.Request {
+	log := r.Log.WithFields(
+		logrus.Fields{
+			"machine":           machine.GetName(),
+			"machine_namespace": machine.GetNamespace(),
+		},
+	)
+
+	amList := &capiproviderv1alpha1.AgentMachineList{}
+	opts := &client.ListOptions{
+		Namespace: machine.GetNamespace(),
+	}
+	if err := r.List(context.Background(), amList, opts); err != nil {
+		log.Debugf("failed to list agent machines")
+		return []reconcile.Request{}
+	}
+
+	for _, agentMachine := range amList.Items {
+		for _, ref := range agentMachine.OwnerReferences {
+			gv, err := schema.ParseGroupVersion(ref.APIVersion)
+			if err != nil {
+				continue
+			}
+			if ref.Kind == "Machine" && gv.Group == clusterv1.GroupVersion.Group && ref.Name == machine.GetName() {
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{
+					Namespace: agentMachine.Namespace,
+					Name:      agentMachine.Name,
+				}}}
+			}
+		}
+	}
+
+	return []reconcile.Request{}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespace string) error {
 	mapAgentToAgentMachine := func(agent client.Object) []reconcile.Request {
@@ -577,5 +613,6 @@ func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespa
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capiproviderv1alpha1.AgentMachine{}).
 		Watches(&source.Kind{Type: &aiv1beta1.Agent{}}, handler.EnqueueRequestsFromMapFunc(mapAgentToAgentMachine)).
+		Watches(&source.Kind{Type: &clusterv1.Machine{}}, handler.EnqueueRequestsFromMapFunc(r.mapMachineToAgentMachine)).
 		Complete(r)
 }

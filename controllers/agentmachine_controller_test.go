@@ -425,3 +425,57 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(getErr.(*errors.StatusError).Status().Code).To(BeEquivalentTo(404))
 	})
 })
+
+var _ = Describe("mapMachineToAgentMachine", func() {
+	var (
+		c             client.Client
+		amr           *AgentMachineReconciler
+		ctx           = context.Background()
+		testNamespace = "test-namespace"
+	)
+
+	BeforeEach(func() {
+		c = fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+		amr = &AgentMachineReconciler{
+			Client:      c,
+			Scheme:      scheme.Scheme,
+			Log:         logrus.New(),
+			AgentClient: c,
+		}
+	})
+
+	It("returns a request for the related agent machine", func() {
+		agentMachine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		Expect(c.Create(ctx, agentMachine)).To(Succeed())
+
+		key := types.NamespacedName{
+			Name:      "machine-agentMachine-1",
+			Namespace: testNamespace,
+		}
+		machine := clusterv1.Machine{}
+		Expect(c.Get(ctx, key, &machine)).To(Succeed())
+
+		requests := amr.mapMachineToAgentMachine(&machine)
+		Expect(len(requests)).To(Equal(1))
+
+		agentMachineKey := types.NamespacedName{
+			Name:      "agentMachine-1",
+			Namespace: testNamespace,
+		}
+		Expect(requests[0].NamespacedName).To(Equal(agentMachineKey))
+	})
+
+	It("returns an empty list when no agent machine is found", func() {
+		// creates all the resource except the agent machine
+		newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+
+		key := types.NamespacedName{
+			Name:      "machine-agentMachine-1",
+			Namespace: testNamespace,
+		}
+		machine := clusterv1.Machine{}
+		Expect(c.Get(ctx, key, &machine)).To(Succeed())
+
+		Expect(amr.mapMachineToAgentMachine(&machine)).To(BeEmpty())
+	})
+})
