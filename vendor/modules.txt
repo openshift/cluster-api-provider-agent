@@ -228,12 +228,12 @@ github.com/onsi/gomega/types
 # github.com/openshift/api v0.0.0-20210216211028-bb81baaf35cd
 ## explicit; go 1.15
 github.com/openshift/api/config/v1
-# github.com/openshift/assisted-service/api v0.0.0-20220404082135-0bb6463a94fb => github.com/openshift/assisted-service/api v0.0.0-20220314012014-141adc8ae8f8
+# github.com/openshift/assisted-service/api v0.0.0-20220811161334-09c4cb098e96 => github.com/openshift/assisted-service/api v0.0.0-20220811161334-09c4cb098e96
 ## explicit; go 1.17
 github.com/openshift/assisted-service/api/common
 github.com/openshift/assisted-service/api/hiveextension/v1beta1
 github.com/openshift/assisted-service/api/v1beta1
-# github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20220327160002-d7f1f0923b25
+# github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20220811161334-09c4cb098e96
 ## explicit; go 1.17
 github.com/openshift/assisted-service/models
 # github.com/openshift/cluster-api-provider-agent/api v0.0.0 => ./api
@@ -772,7 +772,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20220314012014-141adc8ae8f8
-# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20220327160002-d7f1f0923b25
+# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20220811161334-09c4cb098e96
+# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20220811161334-09c4cb098e96
 # github.com/openshift/cluster-api-provider-agent/api => ./api
 # sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.0.0

@@ -35,6 +35,7 @@ type InstallCmdRequest struct {
 
 	// Assisted installer controller image
 	// Required: true
+	// Pattern: ^(([a-zA-Z0-9\-\.]+)(:[0-9]+)?\/)?[a-z0-9\._\-\/@]+[?::a-zA-Z0-9_\-.]+$
 	ControllerImage *string `json:"controller_image"`
 
 	// List of disks to format
@@ -43,9 +44,8 @@ type InstallCmdRequest struct {
 	// Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster
 	// over multiple master nodes whereas 'None' installs a full cluster over one node.
 	//
-	// Required: true
 	// Enum: [Full None]
-	HighAvailabilityMode *string `json:"high_availability_mode"`
+	HighAvailabilityMode *string `json:"high_availability_mode,omitempty"`
 
 	// Host id
 	// Required: true
@@ -62,9 +62,11 @@ type InstallCmdRequest struct {
 
 	// Assisted installer image
 	// Required: true
+	// Pattern: ^(([a-zA-Z0-9\-\.]+)(:[0-9]+)?\/)?[a-z0-9\._\-\/@]+[?::a-zA-Z0-9_\-.]+$
 	InstallerImage *string `json:"installer_image"`
 
 	// Machine config operator image
+	// Pattern: ^(([a-zA-Z0-9\-\.]+)(:[0-9]+)?\/)?[a-z0-9\._\-\/@]+[?::a-zA-Z0-9_\-.]+$
 	McoImage string `json:"mco_image,omitempty"`
 
 	// Must-gather images to use
@@ -82,6 +84,9 @@ type InstallCmdRequest struct {
 
 	// List of service ips
 	ServiceIps []string `json:"service_ips"`
+
+	// Skip formatting installation disk
+	SkipInstallationDiskCleanup bool `json:"skip_installation_disk_cleanup,omitempty"`
 }
 
 // Validate validates this install cmd request
@@ -113,6 +118,10 @@ func (m *InstallCmdRequest) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateInstallerImage(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateMcoImage(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -162,6 +171,10 @@ func (m *InstallCmdRequest) validateControllerImage(formats strfmt.Registry) err
 		return err
 	}
 
+	if err := validate.Pattern("controller_image", "body", *m.ControllerImage, `^(([a-zA-Z0-9\-\.]+)(:[0-9]+)?\/)?[a-z0-9\._\-\/@]+[?::a-zA-Z0-9_\-.]+$`); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -195,9 +208,8 @@ func (m *InstallCmdRequest) validateHighAvailabilityModeEnum(path, location stri
 }
 
 func (m *InstallCmdRequest) validateHighAvailabilityMode(formats strfmt.Registry) error {
-
-	if err := validate.Required("high_availability_mode", "body", m.HighAvailabilityMode); err != nil {
-		return err
+	if swag.IsZero(m.HighAvailabilityMode) { // not required
+		return nil
 	}
 
 	// value enum
@@ -237,6 +249,22 @@ func (m *InstallCmdRequest) validateInfraEnvID(formats strfmt.Registry) error {
 func (m *InstallCmdRequest) validateInstallerImage(formats strfmt.Registry) error {
 
 	if err := validate.Required("installer_image", "body", m.InstallerImage); err != nil {
+		return err
+	}
+
+	if err := validate.Pattern("installer_image", "body", *m.InstallerImage, `^(([a-zA-Z0-9\-\.]+)(:[0-9]+)?\/)?[a-z0-9\._\-\/@]+[?::a-zA-Z0-9_\-.]+$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *InstallCmdRequest) validateMcoImage(formats strfmt.Registry) error {
+	if swag.IsZero(m.McoImage) { // not required
+		return nil
+	}
+
+	if err := validate.Pattern("mco_image", "body", m.McoImage, `^(([a-zA-Z0-9\-\.]+)(:[0-9]+)?\/)?[a-z0-9\._\-\/@]+[?::a-zA-Z0-9_\-.]+$`); err != nil {
 		return err
 	}
 
