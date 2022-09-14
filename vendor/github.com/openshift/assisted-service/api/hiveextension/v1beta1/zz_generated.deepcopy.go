@@ -167,6 +167,11 @@ func (in *AgentClusterInstallStatus) DeepCopyInto(out *AgentClusterInstallStatus
 		copy(*out, *in)
 	}
 	out.DebugInfo = in.DebugInfo
+	if in.UserManagedNetworking != nil {
+		in, out := &in.UserManagedNetworking, &out.UserManagedNetworking
+		*out = new(bool)
+		**out = **in
+	}
 	if in.ValidationsInfo != nil {
 		in, out := &in.ValidationsInfo, &out.ValidationsInfo
 		*out = make(common.ValidationsStatus, len(*in))
@@ -361,6 +366,11 @@ func (in *Networking) DeepCopyInto(out *Networking) {
 		in, out := &in.ServiceNetwork, &out.ServiceNetwork
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.UserManagedNetworking != nil {
+		in, out := &in.UserManagedNetworking, &out.UserManagedNetworking
+		*out = new(bool)
+		**out = **in
 	}
 }
 

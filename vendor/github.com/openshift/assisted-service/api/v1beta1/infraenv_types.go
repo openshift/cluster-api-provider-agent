@@ -88,6 +88,16 @@ type InfraEnvSpec struct {
 	// +kubebuilder:default=x86_64
 	// +optional
 	CpuArchitecture string `json:"cpuArchitecture,omitempty"`
+
+	// IPXEScriptType the script type that should be served (DiscoveryImageAlways/BootOrderControl)
+	// DiscoveryImageAlways: Boot unconditionaly from the network discovery image
+	// BootOrderControl: Boot from discovery ISO depending on the host's state.
+	// When the value is BootOrderControl, the service will look for an Agent record that matches the host's MAC address;
+	// if found, and if that Agent is in a state where it is provisioned and attached to a cluster, then host will boot the host disk.
+	// Otherwise it will boot the discovery ISO using the same script as the DiscoveryImageAlways option.
+	// +kubebuilder:default=DiscoveryImageAlways
+	// +optional
+	IPXEScriptType IPXEScriptType `json:"ipxeScriptType"`
 }
 
 // Proxy defines the proxy settings for agents and clusters that use the InfraEnv.
@@ -168,6 +178,18 @@ type InfraEnvList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []InfraEnv `json:"items"`
 }
+
+// IPXEScriptType is the script type that should be served (BootOrderControl/DiscoveryImageAlways)
+// +kubebuilder:validation:Enum="";DiscoveryImageAlways;BootOrderControl
+type IPXEScriptType string
+
+const (
+	// DiscoveryImageAlways - Boot from network
+	DiscoveryImageAlways IPXEScriptType = "DiscoveryImageAlways"
+
+	// BootOrderControl - Boot with mac identification redirect script
+	BootOrderControl IPXEScriptType = "BootOrderControl"
+)
 
 func init() {
 	SchemeBuilder.Register(&InfraEnv{}, &InfraEnvList{})

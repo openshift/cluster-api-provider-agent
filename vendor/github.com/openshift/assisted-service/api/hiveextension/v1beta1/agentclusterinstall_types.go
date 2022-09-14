@@ -25,6 +25,8 @@ const (
 	ClusterInsufficientAgentsMsg     string = "The cluster currently requires %d agents but only %d have registered"
 	ClusterUnapprovedAgentsReason    string = "UnapprovedAgents"
 	ClusterUnapprovedAgentsMsg       string = "The installation is pending on the approval of %d agents"
+	ClusterUnsyncedAgentsReason      string = "UnsyncedAgents"
+	ClusterUnsyncedAgentsMsg         string = "The cluster currently has %d agents with spec error"
 	ClusterAdditionalAgentsReason    string = "AdditionalAgents"
 	ClusterAdditionalAgentsMsg       string = "The cluster currently requires exactly %d agents but have %d registered"
 
@@ -169,6 +171,10 @@ type AgentClusterInstallSpec struct {
 	// Proxy defines the proxy settings used for the install config
 	// +optional
 	Proxy *Proxy `json:"proxy,omitempty"`
+
+	// PlatformType is the name for the specific platform upon which to perform the installation.
+	// +optional
+	PlatformType PlatformType `json:"platformType,omitempty"`
 }
 
 // IgnitionEndpoint stores the data to of the custom ignition endpoint.
@@ -218,6 +224,22 @@ type AgentClusterInstallStatus struct {
 	// +optional
 	DebugInfo DebugInfo `json:"debugInfo"`
 
+	// APIVIP is the virtual IP used to reach the OpenShift cluster's API.
+	// +optional
+	APIVIP string `json:"apiVIP,omitempty"`
+
+	// IngressVIP is the virtual IP used for cluster ingress traffic.
+	// +optional
+	IngressVIP string `json:"ingressVIP,omitempty"`
+
+	// UserManagedNetworking indicates if the networking is managed by the user.
+	// +optional
+	UserManagedNetworking *bool `json:"userManagedNetworking,omitempty"`
+
+	// PlatformType is the name for the specific platform upon which to perform the installation.
+	// +optional
+	PlatformType PlatformType `json:"platformType,omitempty"`
+
 	// ValidationsInfo is a JSON-formatted string containing the validation results for each validation id grouped by category (network, hosts-data, etc.)
 	// +optional
 	ValidationsInfo common.ValidationsStatus `json:"validationsInfo,omitempty"`
@@ -265,8 +287,9 @@ type Networking struct {
 	NetworkType string `json:"networkType,omitempty"`
 
 	// UserManagedNetworking indicates if the networking is managed by the user.
+	// For single-node installations, set to true or leave empty.
 	// +optional
-	UserManagedNetworking bool `json:"userManagedNetworking,omitempty"`
+	UserManagedNetworking *bool `json:"userManagedNetworking,omitempty"`
 }
 
 // MachineNetworkEntry is a single IP address block for node IP blocks.
@@ -316,6 +339,21 @@ const (
 const (
 	MasterAgentMachinePool string = "master"
 	WorkerAgentMachinePool string = "worker"
+)
+
+// PlatformType is a specific supported infrastructure provider.
+// +kubebuilder:validation:Enum="";BareMetal;None;VSphere
+type PlatformType string
+
+const (
+	// BareMetalPlatformType represents managed bare metal infrastructure.
+	BareMetalPlatformType PlatformType = "BareMetal"
+
+	// NonePlatformType means there is no infrastructure provider.
+	NonePlatformType PlatformType = "None"
+
+	// VSpherePlatformType represents VMWare vSphere infrastructure.
+	VSpherePlatformType PlatformType = "VSphere"
 )
 
 // AgentMachinePool is a pool of machines to be installed.

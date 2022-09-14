@@ -553,10 +553,10 @@ github.com/onsi/gomega v1.18.1/go.mod h1:0q+aL8jAiMXy9hbwj2mr5GziHiwhAIQpFmmtT5h
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/openshift/api v0.0.0-20210216211028-bb81baaf35cd h1:SzOmbKIulFFEBPoBosc4G4QBVN4QwynEvb3RU9tOdJA=
 github.com/openshift/api v0.0.0-20210216211028-bb81baaf35cd/go.mod h1:aqU5Cq+kqKKPbDMqxo9FojgDeSpNJI7iuskjXjtojDg=
-github.com/openshift/assisted-service/api v0.0.0-20220314012014-141adc8ae8f8 h1:ZBDznehOlgkeElBH72jsVHo8/XizdydZuHj8C7aaUsE=
-github.com/openshift/assisted-service/api v0.0.0-20220314012014-141adc8ae8f8/go.mod h1:KXLo37GRdMYq/8PHRbvWPW9AEZjLI3NdFCySAwBJfAQ=
-github.com/openshift/assisted-service/models v0.0.0-20220327160002-d7f1f0923b25 h1:dFjNc0m3rLzMv87+1BsW8Ptag7Afrf3MFrpXZjV1qGE=
-github.com/openshift/assisted-service/models v0.0.0-20220327160002-d7f1f0923b25/go.mod h1:jTawnnM2LU/AzpZLYxPeXQy4qBRl5iwFo1bu3zrPv2s=
+github.com/openshift/assisted-service/api v0.0.0-20220811161334-09c4cb098e96 h1:/hFV74JO0/fLqhTFjcmL0UNCfeZX9EMf2JRLdWeT8Wo=
+github.com/openshift/assisted-service/api v0.0.0-20220811161334-09c4cb098e96/go.mod h1:KXLo37GRdMYq/8PHRbvWPW9AEZjLI3NdFCySAwBJfAQ=
+github.com/openshift/assisted-service/models v0.0.0-20220811161334-09c4cb098e96 h1:PuiMFgQfq3IpJg2nJHtAtRwXrRsMhXotXPcdFgdZaH0=
+github.com/openshift/assisted-service/models v0.0.0-20220811161334-09c4cb098e96/go.mod h1:jTawnnM2LU/AzpZLYxPeXQy4qBRl5iwFo1bu3zrPv2s=
 github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab/go.mod h1:b1BuldmJlbA/xYtdZvKi+7j5YGB44qJUJDZ9zwiNCfE=
 github.com/openshift/custom-resource-status v1.1.1 h1:CFL7mVPbec7aob7r6SWXiyCtXo6G8xZmLuyRj1F2s8Y=
 github.com/openshift/custom-resource-status v1.1.1/go.mod h1:vklCbKGD2iT8h4L2nGFYBHHe8/DaXWPozOP12JXllqA=
