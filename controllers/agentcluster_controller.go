@@ -25,7 +25,6 @@ import (
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
 	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
-	"github.com/openshift/hive/apis/hive/v1/agent"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -195,9 +194,6 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 		Spec: hivev1.ClusterDeploymentSpec{
 			Installed:   true,
 			ClusterName: controlPlane.ClusterName,
-			Platform: hivev1.Platform{
-				AgentBareMetal: &agent.BareMetalPlatform{},
-			},
 			ClusterInstallRef: &hivev1.ClusterInstallLocalReference{
 				Kind:    "AgentClusterInstall",
 				Group:   hiveext.Group,
