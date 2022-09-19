@@ -165,7 +165,7 @@ mockgen: ## Download mockgen locally if necessary.
 
 GOLINT = $(shell pwd)/bin/golangci-lint
 golint: ## Download golangci-lint locally if necessary.
-	@[ -f $(GOLINT) ] || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell pwd)/bin v1.43.0
+	$(call go-get-tool,$(GOLINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.44.2)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
