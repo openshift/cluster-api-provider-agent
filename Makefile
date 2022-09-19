@@ -161,7 +161,7 @@ envtest: ## Download envtest-setup locally if necessary.
 
 MOCKGEN = $(shell pwd)/bin/mockgen
 mockgen: ## Download mockgen locally if necessary.
-	$(call go-get-tool,$(MOCKGEN),github.com/golang/mock/mockgen)
+	$(call go-get-tool,$(MOCKGEN),github.com/golang/mock/mockgen@latest)
 
 GOLINT = $(shell pwd)/bin/golangci-lint
 golint: ## Download golangci-lint locally if necessary.
@@ -172,12 +172,8 @@ PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 define go-get-tool
 @[ -f $(1) ] || { \
 set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
-rm -rf $$TMP_DIR ;\
+echo "Installing $(2)" ;\
+GOFLAGS="" GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 }
 endef
 
