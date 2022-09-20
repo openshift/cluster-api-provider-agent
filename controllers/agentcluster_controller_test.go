@@ -273,6 +273,7 @@ var _ = Describe("agentcluster reconcile", func() {
 
 		agentClusterInstall := &hiveext.AgentClusterInstall{}
 		Expect(c.Get(ctx, key, agentClusterInstall)).To(BeNil())
+		Expect(*agentClusterInstall.Spec.Networking.UserManagedNetworking).To(BeTrue())
 	})
 	It("agentCluster missing controlPlaneEndpoint", func() {
 		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1alpha1.AgentClusterSpec{
