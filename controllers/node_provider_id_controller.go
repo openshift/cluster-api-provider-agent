@@ -54,6 +54,7 @@ func (r *NodeProviderIDReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	defer func() {
 		log.Info("NodeProviderID Reconcile ended")
 	}()
+	log.Info("NodeProviderID Reconcile start")
 
 	agentMachine := &capiproviderv1alpha1.AgentMachine{}
 	if err := r.Get(ctx, req.NamespacedName, agentMachine); err != nil {

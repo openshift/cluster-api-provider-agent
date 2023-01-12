@@ -87,6 +87,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	defer func() {
 		log.Info("AgentMachine Reconcile ended")
 	}()
+	log.Info("AgentMachine Reconcile start")
 
 	agentMachine := &capiproviderv1alpha1.AgentMachine{}
 	if err := r.Get(ctx, req.NamespacedName, agentMachine); err != nil {
@@ -175,6 +176,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
+		log.Info("Machine is being deleted adding delete hook annotation")
 		annotations[machineDeleteHookName] = ""
 		machine.SetAnnotations(annotations)
 		if err := r.Update(ctx, machine); err != nil {
@@ -190,7 +192,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	if cond == nil || cond.Status == corev1.ConditionTrue {
 		return nil, nil
 	}
-
+	log.Infof("Machine is waiting on delete hook %s", clusterv1.PreTerminateDeleteHookSucceededCondition)
 	if agentMachine.Status.AgentRef == nil {
 		log.Info("Removing machine delete hook annotation - agent ref is nil")
 		if err := r.removeMachineDeletionHookAnnotation(ctx, machine); err != nil {
