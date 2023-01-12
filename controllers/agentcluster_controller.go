@@ -76,6 +76,7 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	defer func() {
 		log.Info("AgentCluster Reconcile ended")
 	}()
+	log.Info("AgentCluster Reconcile start")
 
 	agentCluster := &capiproviderv1alpha1.AgentCluster{}
 	if err := r.Get(ctx, req.NamespacedName, agentCluster); err != nil {
