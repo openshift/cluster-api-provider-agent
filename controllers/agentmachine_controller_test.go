@@ -20,6 +20,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/thoas/go-funk"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -249,9 +250,8 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("True"))
 	})
 
-	It("removes the old finalizer and sets the machine delete hook annotation", func() {
+	It("sets the finalizer and the machine delete hook annotation", func() {
 		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
-		controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
 		Expect(c.Create(ctx, agentMachine)).To(Succeed())
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
@@ -259,7 +259,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(result).To(Equal(ctrl.Result{}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
-		Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
+		Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeTrue())
 		machine, err := clusterutil.GetOwnerMachine(ctx, c, agentMachine.ObjectMeta)
 		Expect(err).To(BeNil())
 		_, haveMachineHookAnnotation := machine.GetAnnotations()[machineDeleteHookName]
@@ -396,7 +396,22 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(result).To(Equal(ctrl.Result{}))
 	})
 
-	It("removes the machine delete hook when agent ref is not set and machine is waiting on delete hook", func() {
+	It("removes agentmachine finalizer if agent is missing", func() {
+		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
+		Expect(c.Create(ctx, agentMachine)).To(BeNil())
+		Expect(c.Delete(ctx, machine)).To(BeNil())
+		Expect(c.Delete(ctx, agentMachine)).To(BeNil())
+
+		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+		Expect(err).ToNot(BeNil())
+		Expect(result).To(Equal(ctrl.Result{}))
+
+		getError := c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)
+		Expect(apierrors.IsNotFound(getError)).To(BeTrue())
+	})
+
+	It("removes the delete hook and finalizer when agent ref is not set and machine is waiting on delete hook", func() {
 		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
 		agentMachine.Status.Ready = true
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
@@ -411,9 +426,11 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
 		Expect(machine.GetAnnotations()).ToNot(HaveKey(machineDeleteHookName))
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
+		Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
 	})
 
-	It("removes the machine delete hook when agent is missing and machine is waiting on delete hook", func() {
+	It("removes the delete hook and finalizer when agent is missing and machine is waiting on delete hook", func() {
 		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
 		agentMachine.Status.Ready = true
 		agentMachine.Status.AgentRef = &capiproviderv1alpha1.AgentReference{Namespace: testNamespace, Name: "missingAgent"}
@@ -429,6 +446,8 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
 		Expect(machine.GetAnnotations()).ToNot(HaveKey(machineDeleteHookName))
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
+		Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
 	})
 
 	It("unbinds the agent and requeues when machine is waiting on delete hook", func() {
@@ -486,7 +505,7 @@ var _ = Describe("agentmachine reconcile", func() {
 			Expect(c.Update(ctx, machine)).To(BeNil())
 		})
 
-		It("removes the machine delete hook when the agent reaches discovering unbound rebooting", func() {
+		It("removes the delete hook and finalizer when the agent reaches discovering unbound rebooting", func() {
 			agent.Status.DebugInfo.State = aimodels.HostStatusDiscoveringUnbound
 			Expect(c.Update(ctx, agent)).To(BeNil())
 
@@ -496,9 +515,11 @@ var _ = Describe("agentmachine reconcile", func() {
 
 			Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
 			Expect(machine.GetAnnotations()).ToNot(HaveKey(machineDeleteHookName))
+			Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
+			Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
 		})
 
-		It("removes the machine delete hook when the agent reaches unbinding pending user action", func() {
+		It("removes the delete hook and finalizer when the agent reaches unbinding pending user action", func() {
 			agent.Status.DebugInfo.State = aimodels.HostStatusUnbindingPendingUserAction
 			Expect(c.Update(ctx, agent)).To(BeNil())
 
@@ -508,6 +529,8 @@ var _ = Describe("agentmachine reconcile", func() {
 
 			Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
 			Expect(machine.GetAnnotations()).ToNot(HaveKey(machineDeleteHookName))
+			Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
+			Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
 		})
 	})
 })

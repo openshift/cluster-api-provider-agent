@@ -96,6 +96,15 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	machine, err := clusterutil.GetOwnerMachine(ctx, r.Client, agentMachine.ObjectMeta)
 	if err != nil {
+		// It's possible that the machine delete hook was removed but the finalizer failed to remove for some reason
+		// In this case the machine would be gone, but the agent machine would not be able to be removed
+		// Check for the finalizer in this case and remove it
+		if !agentMachine.DeletionTimestamp.IsZero() {
+			log.Infof("Removing finalizer on agent machine %s/%s with missing machine", agentMachine.Namespace, agentMachine.Name)
+			if finalizerError := r.removeFinalizer(ctx, agentMachine); finalizerError != nil {
+				log.Error(finalizerError)
+			}
+		}
 		log.WithError(err).Error("failed to get owner machine")
 		return ctrl.Result{}, err
 	}
@@ -149,52 +158,67 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, nil)
 }
 
-func (r *AgentMachineReconciler) removeMachineDeletionHookAnnotation(ctx context.Context, machine *clusterv1.Machine) (err error) {
+func (r *AgentMachineReconciler) removeFinalizer(ctx context.Context, agentMachine *capiproviderv1alpha1.AgentMachine) error {
+	if funk.ContainsString(agentMachine.GetFinalizers(), AgentMachineFinalizerName) {
+		controllerutil.RemoveFinalizer(agentMachine, AgentMachineFinalizerName)
+		if err := r.Update(ctx, agentMachine); err != nil {
+			return fmt.Errorf("failed to remove agent machine finalizer for agent machine %s/%s: %w", agentMachine.Namespace, agentMachine.Name, err)
+		}
+	}
+	return nil
+}
+
+func (r *AgentMachineReconciler) removeHookAndFinalizer(ctx context.Context, machine *clusterv1.Machine, agentMachine *capiproviderv1alpha1.AgentMachine) error {
 	annotations := machine.GetAnnotations()
 	if _, haveMachineHookAnnotation := annotations[machineDeleteHookName]; haveMachineHookAnnotation {
 		delete(annotations, machineDeleteHookName)
 		machine.SetAnnotations(annotations)
-		err = r.Update(ctx, machine)
-	}
-	return err
-}
-
-func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine, machine *clusterv1.Machine) (*ctrl.Result, error) {
-	// TODO: this can be removed when we're sure no agent machines have this finalizer anymore
-	if funk.ContainsString(agentMachine.GetFinalizers(), AgentMachineFinalizerName) {
-		controllerutil.RemoveFinalizer(agentMachine, AgentMachineFinalizerName)
-		if err := r.Update(ctx, agentMachine); err != nil {
-			log.WithError(err).Errorf("failed to remove finalizer %s from resource %s %s", AgentMachineFinalizerName, agentMachine.Name, agentMachine.Namespace)
-			return &ctrl.Result{}, err
+		if err := r.Update(ctx, machine); err != nil {
+			return fmt.Errorf("failed to remove machine delete hook annotation for machine %s/%s: %w", machine.Namespace, machine.Name, err)
 		}
 	}
 
+	return r.removeFinalizer(ctx, agentMachine)
+}
+
+func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine, machine *clusterv1.Machine) (*ctrl.Result, error) {
 	// set delete hook if not present and machine not being deleted
 	annotations := machine.GetAnnotations()
 	if _, haveMachineHookAnnotation := annotations[machineDeleteHookName]; !haveMachineHookAnnotation && machine.DeletionTimestamp == nil {
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
+		log.Info("Adding machine delete hook annotation")
 		annotations[machineDeleteHookName] = ""
 		machine.SetAnnotations(annotations)
 		if err := r.Update(ctx, machine); err != nil {
 			log.WithError(err).Error("failed to add machine delete hook annotation")
 			return &ctrl.Result{}, err
 		}
-		// return early here as there's no reason to check if the machine is held up on this hook as we just created it
-		return nil, nil
+	}
+
+	// Also set a finalizer so the agent machine can't be removed before the machine
+	if agentMachine.ObjectMeta.DeletionTimestamp.IsZero() && !funk.ContainsString(agentMachine.GetFinalizers(), AgentMachineFinalizerName) {
+		controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
+		if err := r.Update(ctx, agentMachine); err != nil {
+			log.WithError(err).Errorf("failed to add finalizer %s to resource %s %s", AgentMachineFinalizerName, agentMachine.Name, agentMachine.Namespace)
+			return &ctrl.Result{}, err
+		}
 	}
 
 	// return if the machine is not waiting on this hook
 	cond := conditions.Get(machine, clusterv1.PreTerminateDeleteHookSucceededCondition)
 	if cond == nil || cond.Status == corev1.ConditionTrue {
+		if !agentMachine.DeletionTimestamp.IsZero() {
+			log.Warnf("Not starting agent machine removal until machine %s/%s pauses for delete hook", machine.Namespace, machine.Name)
+		}
 		return nil, nil
 	}
 
 	if agentMachine.Status.AgentRef == nil {
 		log.Info("Removing machine delete hook annotation - agent ref is nil")
-		if err := r.removeMachineDeletionHookAnnotation(ctx, machine); err != nil {
-			log.WithError(err).Error("failed to remove machine delete hook annotation")
+		if err := r.removeHookAndFinalizer(ctx, machine, agentMachine); err != nil {
+			log.Error(err)
 			return &ctrl.Result{}, err
 		}
 		return nil, nil
@@ -204,8 +228,8 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.WithError(err).Infof("Failed to get agent %s. assuming the agent no longer exists", agentMachine.Status.AgentRef.Name)
-			if hookErr := r.removeMachineDeletionHookAnnotation(ctx, machine); hookErr != nil {
-				log.WithError(hookErr).Error("failed to remove machine delete hook annotation")
+			if hookErr := r.removeHookAndFinalizer(ctx, machine, agentMachine); hookErr != nil {
+				log.Error(hookErr)
 				return &ctrl.Result{}, hookErr
 			}
 			return nil, nil
@@ -237,8 +261,8 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	}
 	if funk.Contains(removeHookStates, agent.Status.DebugInfo.State) {
 		log.Infof("Removing machine delete hook annotation for agent in status %s", agent.Status.DebugInfo.State)
-		if err := r.removeMachineDeletionHookAnnotation(ctx, machine); err != nil {
-			log.WithError(err).Error("failed to remove machine delete hook annotation")
+		if err := r.removeHookAndFinalizer(ctx, machine, agentMachine); err != nil {
+			log.Error(err)
 			return &ctrl.Result{}, err
 		}
 	} else {
