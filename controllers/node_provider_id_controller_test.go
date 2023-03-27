@@ -143,8 +143,8 @@ var _ = Describe("node providerID reconcile", func() {
 		err := rc.Create(ctx, &node)
 		Expect(err).To(BeNil())
 		result, err := npid.Reconcile(ctx, newAgentMachineRequest(agentMachine))
-		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeue}))
+		Expect(err).NotTo(BeNil())
+		Expect(result).To(Equal(ctrl.Result{}))
 		// validate the node providerID wasn't updated
 		err = rc.Get(ctx, types.NamespacedName{Namespace: "", Name: nodeName}, &node)
 		Expect(err).To(BeNil())
@@ -157,8 +157,8 @@ var _ = Describe("node providerID reconcile", func() {
 		agentMachine.Spec.ProviderID = &providerID
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 		result, err := npid.Reconcile(ctx, newAgentMachineRequest(agentMachine))
-		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeue}))
+		Expect(err).NotTo(BeNil())
+		Expect(result).To(Equal(ctrl.Result{}))
 	})
 	It("failed to set providerId - can't find node with matching node name", func() {
 		internalDNS := "not-worker-1"
@@ -168,8 +168,8 @@ var _ = Describe("node providerID reconcile", func() {
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 		mockRemoteClientHandler.EXPECT().GetRemoteClient(gomock.Any(), agentMachine.Namespace).Return(nil, errors.New("Failed to create remoteClient")).Times(1)
 		result, err := npid.Reconcile(ctx, newAgentMachineRequest(agentMachine))
-		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeue}))
+		Expect(err).NotTo(BeNil())
+		Expect(result).To(Equal(ctrl.Result{}))
 	})
 	It("failed to set providerId - different providerID already set", func() {
 		nodeName := "worker-1"
@@ -186,8 +186,8 @@ var _ = Describe("node providerID reconcile", func() {
 		err := rc.Create(ctx, &node)
 		Expect(err).To(BeNil())
 		result, err := npid.Reconcile(ctx, newAgentMachineRequest(agentMachine))
-		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{RequeueAfter: defaultRequeue}))
+		Expect(err).NotTo(BeNil())
+		Expect(result).To(Equal(ctrl.Result{}))
 		// validate the node providerID wasn't updated
 		err = rc.Get(ctx, types.NamespacedName{Namespace: "", Name: nodeName}, &node)
 		Expect(err).To(BeNil())
