@@ -42,8 +42,8 @@ type NodeProviderIDReconciler struct {
 	RemoteClientHandler
 }
 
-//+kubebuilder:rbac:groups=capi-provider.agent-install.openshift.io,resources=agentmachines,verbs=get;list;watch
-//+kubebuilder:rbac:groups=capi-provider.agent-install.openshift.io,resources=agentmachines/status,verbs=get
+// +kubebuilder:rbac:groups=capi-provider.agent-install.openshift.io,resources=agentmachines,verbs=get;list;watch
+// +kubebuilder:rbac:groups=capi-provider.agent-install.openshift.io,resources=agentmachines/status,verbs=get
 func (r *NodeProviderIDReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithFields(
 		logrus.Fields{
@@ -68,14 +68,14 @@ func (r *NodeProviderIDReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if err := r.setNodeProviderID(ctx, log, agentMachine); err != nil {
-		log.Infof("can't set node provider ID, error: %s", err)
-		return ctrl.Result{RequeueAfter: defaultRequeue}, nil
+		log.WithError(err).Error("can't set node provider ID")
+		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
 
 func (r *NodeProviderIDReconciler) setNodeProviderID(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) error {
-	log.Debug("Setting node provider ID")
+	log.Info("Setting node provider ID")
 	nodeName := ""
 	for _, address := range agentMachine.Status.Addresses {
 		if corev1.NodeAddressType(address.Type) == corev1.NodeInternalDNS {
