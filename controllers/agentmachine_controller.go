@@ -243,6 +243,9 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	if funk.Contains(agent.ObjectMeta.Labels, AgentMachineRefLabelKey) || agent.Spec.ClusterDeploymentName != nil {
 		r.Log.Info("Removing ClusterDeployment ref to unbind Agent")
 		delete(agent.ObjectMeta.Labels, AgentMachineRefLabelKey)
+		delete(agent.ObjectMeta.Annotations, AgentMachineRefNamespace)
+		agent.Spec.MachineConfigPool = ""
+		agent.Spec.IgnitionEndpointTokenReference = nil
 		agent.Spec.ClusterDeploymentName = nil
 		if err := r.Update(ctx, agent); err != nil {
 			log.WithError(err).Error("failed to remove the Agent's ClusterDeployment ref")
