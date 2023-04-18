@@ -355,6 +355,48 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(agentSecret.Data["ignition-token"]).To(BeEquivalentTo([]byte("encodedToken")))
 	})
 
+	It("agent bind-unbind cleanup", func() {
+		spec := capiproviderv1alpha1.AgentMachineSpec{AgentLabelSelector: &metav1.LabelSelector{}}
+		agentMachine, machine := newAgentMachine("agentMachine", testNamespace, spec, ctx, c)
+		Expect(c.Create(ctx, agentMachine)).To(BeNil())
+		agentMachineRequest := newAgentMachineRequest(agentMachine)
+
+		Expect(c.Create(ctx, newAgentWithProperties("agent", testNamespace, true, false, true, map[string]string{}))).To(BeNil())
+
+		originalAgent := &aiv1beta1.Agent{}
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agent"}, originalAgent)).To(BeNil())
+
+		// associate agent with agentMachine
+		result, err := amr.Reconcile(ctx, agentMachineRequest)
+		Expect(err).To(BeNil())
+		Expect(result).To(Equal(ctrl.Result{}))
+
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine"}, agentMachine)).To(BeNil())
+		Expect(agentMachine.Status.AgentRef.Name).To(BeEquivalentTo("agent"))
+
+		boundAgent := &aiv1beta1.Agent{}
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agent"}, boundAgent)).To(BeNil())
+		Expect(boundAgent.Spec.IgnitionEndpointTokenReference).ToNot(BeNil())
+		Expect(boundAgent.Spec.MachineConfigPool).ToNot(BeEmpty())
+
+		// mark the machine for deletion
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
+		conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
+		machine.Annotations[machineDeleteHookName] = ""
+		Expect(c.Update(ctx, machine)).To(BeNil())
+
+		result, err = amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+		Expect(err).To(BeNil())
+		Expect(result.RequeueAfter).To(Equal(5 * time.Second))
+
+		// check that the now unbound agent looks like it did before binding
+		unboundAgent := &aiv1beta1.Agent{}
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agent"}, unboundAgent)).To(BeNil())
+		Expect(unboundAgent.Labels).To(BeEquivalentTo(originalAgent.Labels))
+		Expect(unboundAgent.Annotations).To(BeEquivalentTo(originalAgent.Annotations))
+		Expect(unboundAgent.Spec).To(BeEquivalentTo(originalAgent.Spec))
+	})
+
 	It("agentMachine agent with missing agentref", func() {
 		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
