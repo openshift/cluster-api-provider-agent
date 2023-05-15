@@ -683,7 +683,7 @@ func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespa
 			),
 		}
 		if err := r.List(context.Background(), amList, opts); err != nil {
-			log.Error("failed to list agent machines")
+			log.WithError(err).Error("failed to list agent machines")
 			return []reconcile.Request{}
 		}
 
