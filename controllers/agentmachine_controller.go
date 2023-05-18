@@ -36,7 +36,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -677,29 +676,26 @@ func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespa
 		amList := &capiproviderv1alpha1.AgentMachineList{}
 		opts := &client.ListOptions{
 			Namespace: namespace,
-			FieldSelector: fields.AndSelectors(
-				fields.OneTermEqualSelector("status.agentRef.name", agent.GetName()),
-				fields.OneTermEqualSelector("status.agentRef.namespace", agent.GetNamespace()),
-			),
 		}
+
 		if err := r.List(context.Background(), amList, opts); err != nil {
 			log.WithError(err).Error("failed to list agent machines")
 			return []reconcile.Request{}
 		}
 
-		switch agentMachinesLen := len(amList.Items); {
-		case agentMachinesLen == 0:
-			return []reconcile.Request{}
-		case agentMachinesLen > 1:
-			log.Errorf("Found %d agent machines with the same agentRef!", agentMachinesLen)
-			fallthrough
-		default:
-			return []reconcile.Request{{
-				NamespacedName: types.NamespacedName{
-					Namespace: amList.Items[0].Namespace,
-					Name:      amList.Items[0].Name,
-				}}}
+		reply := make([]reconcile.Request, 0, len(amList.Items))
+		for _, agentMachine := range amList.Items {
+			if agentMachine.Status.AgentRef != nil &&
+				agentMachine.Status.AgentRef.Namespace == agent.GetNamespace() &&
+				agentMachine.Status.AgentRef.Name == agent.GetName() {
+				reply = append(reply, reconcile.Request{NamespacedName: types.NamespacedName{
+					Namespace: agentMachine.Namespace,
+					Name:      agentMachine.Name,
+				}})
+				break
+			}
 		}
+		return reply
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
