@@ -210,12 +210,22 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 
 	// return if the machine is not waiting on this hook
 	cond := conditions.Get(machine, clusterv1.PreTerminateDeleteHookSucceededCondition)
-	if cond == nil || cond.Status == corev1.ConditionTrue {
+	if cond == nil {
 		if !agentMachine.DeletionTimestamp.IsZero() {
 			log.Warnf("Not starting agent machine removal until machine %s/%s pauses for delete hook", machine.Namespace, machine.Name)
 		}
 		return nil, nil
 	}
+
+	// If the hook was already processed and removed ensure the finalizer is removed and return
+	if cond.Status == corev1.ConditionTrue {
+		if err := r.removeFinalizer(ctx, agentMachine); err != nil {
+			log.Error(err)
+			return &ctrl.Result{}, err
+		}
+		return nil, nil
+	}
+
 	log.Infof("Machine is waiting on delete hook %s", clusterv1.PreTerminateDeleteHookSucceededCondition)
 	if agentMachine.Status.AgentRef == nil {
 		log.Info("Removing machine delete hook annotation - agent ref is nil")
