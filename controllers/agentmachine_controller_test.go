@@ -492,6 +492,23 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
 	})
 
+	It("removes the finalizer when the delete hook has already been removed", func() {
+		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
+		agentMachine.Status.Ready = true
+		Expect(c.Create(ctx, agentMachine)).To(BeNil())
+
+		conditions.MarkTrue(machine, clusterv1.PreTerminateDeleteHookSucceededCondition)
+		Expect(c.Update(ctx, machine)).To(BeNil())
+
+		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+		Expect(err).To(BeNil())
+		Expect(result).To(Equal(ctrl.Result{}))
+
+		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
+		Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
+	})
+
 	It("unbinds the agent and requeues when machine is waiting on delete hook", func() {
 		agent := newAgent("agent-1", testNamespace, aiv1beta1.AgentSpec{Approved: false})
 		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: "True"})
