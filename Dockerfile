@@ -4,7 +4,7 @@ FROM golang:1.17 as builder
 WORKDIR /workspace
 COPY . .
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
 
 FROM registry.ci.openshift.org/ocp/4.10:base
 WORKDIR /
