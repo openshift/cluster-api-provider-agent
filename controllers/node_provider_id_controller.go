@@ -20,7 +20,7 @@ import (
 	"context"
 	"time"
 
-	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
+	capiproviderv1 "github.com/openshift/cluster-api-provider-agent/api/v1beta1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -56,7 +56,7 @@ func (r *NodeProviderIDReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}()
 	log.Info("NodeProviderID Reconcile start")
 
-	agentMachine := &capiproviderv1alpha1.AgentMachine{}
+	agentMachine := &capiproviderv1.AgentMachine{}
 	if err := r.Get(ctx, req.NamespacedName, agentMachine); err != nil {
 		log.WithError(err).Errorf("Failed to get agentMachine %s", req.NamespacedName)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -74,7 +74,7 @@ func (r *NodeProviderIDReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{}, nil
 }
 
-func (r *NodeProviderIDReconciler) setNodeProviderID(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) error {
+func (r *NodeProviderIDReconciler) setNodeProviderID(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine) error {
 	log.Info("Setting node provider ID")
 	nodeName := ""
 	for _, address := range agentMachine.Status.Addresses {
@@ -114,6 +114,6 @@ func (r *NodeProviderIDReconciler) setNodeProviderID(ctx context.Context, log lo
 // SetupWithManager sets up the controller with the Manager.
 func (r *NodeProviderIDReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&capiproviderv1alpha1.AgentMachine{}).
+		For(&capiproviderv1.AgentMachine{}).
 		Complete(r)
 }
