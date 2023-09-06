@@ -49,7 +49,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -634,7 +633,7 @@ func getAddresses(foundAgent *aiv1beta1.Agent) []clusterv1.MachineAddress {
 	return machineAddresses
 }
 
-func (r *AgentMachineReconciler) mapMachineToAgentMachine(machine client.Object) []reconcile.Request {
+func (r *AgentMachineReconciler) mapMachineToAgentMachine(ctx context.Context, machine client.Object) []reconcile.Request {
 	log := r.Log.WithFields(
 		logrus.Fields{
 			"machine":           machine.GetName(),
@@ -646,7 +645,7 @@ func (r *AgentMachineReconciler) mapMachineToAgentMachine(machine client.Object)
 	opts := &client.ListOptions{
 		Namespace: machine.GetNamespace(),
 	}
-	if err := r.List(context.Background(), amList, opts); err != nil {
+	if err := r.List(ctx, amList, opts); err != nil {
 		log.Debugf("failed to list agent machines")
 		return []reconcile.Request{}
 	}
@@ -671,7 +670,7 @@ func (r *AgentMachineReconciler) mapMachineToAgentMachine(machine client.Object)
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespace string) error {
-	mapAgentToAgentMachine := func(agent client.Object) []reconcile.Request {
+	mapAgentToAgentMachine := func(ctx context.Context, agent client.Object) []reconcile.Request {
 		log := r.Log.WithFields(
 			logrus.Fields{
 				"agent":           agent.GetName(),
@@ -688,7 +687,7 @@ func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespa
 			Namespace: namespace,
 		}
 
-		if err := r.List(context.Background(), amList, opts); err != nil {
+		if err := r.List(ctx, amList, opts); err != nil {
 			log.WithError(err).Error("failed to list agent machines")
 			return []reconcile.Request{}
 		}
@@ -710,7 +709,7 @@ func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespa
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capiproviderv1alpha1.AgentMachine{}).
-		Watches(&source.Kind{Type: &aiv1beta1.Agent{}}, handler.EnqueueRequestsFromMapFunc(mapAgentToAgentMachine)).
-		Watches(&source.Kind{Type: &clusterv1.Machine{}}, handler.EnqueueRequestsFromMapFunc(r.mapMachineToAgentMachine)).
+		Watches(&aiv1beta1.Agent{}, handler.EnqueueRequestsFromMapFunc(mapAgentToAgentMachine)).
+		Watches(&clusterv1.Machine{}, handler.EnqueueRequestsFromMapFunc(r.mapMachineToAgentMachine)).
 		Complete(r)
 }

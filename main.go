@@ -84,12 +84,12 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "7605f49b.agent-install.openshift.io",
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			DefaultSelector: cache.ObjectSelector{Field: fields.OneTermEqualSelector("metadata.namespace", watchNamespace)},
-			SelectorsByObject: cache.SelectorsByObject{
+		Cache: cache.Options{
+			DefaultFieldSelector: fields.OneTermEqualSelector("metadata.namespace", watchNamespace),
+			ByObject: map[client.Object]cache.ByObject{
 				&aiv1beta1.Agent{}: {Field: fields.OneTermEqualSelector("metadata.namespace", agentsNamespace)},
 			},
-		}),
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

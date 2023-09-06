@@ -134,7 +134,7 @@ func newAgentMachine(name, namespace string, spec capiproviderv1alpha1.AgentMach
 		},
 		Status: clusterv1.MachineStatus{},
 	}
-	machine.ObjectMeta.Labels[clusterv1.ClusterLabelName] = cluster.Name
+	machine.ObjectMeta.Labels[clusterv1.ClusterNameLabel] = cluster.Name
 	Expect(c.Create(ctx, &machine)).To(BeNil())
 
 	machineOwnerRef := metav1.OwnerReference{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Machine", Name: machine.Name}
@@ -616,7 +616,7 @@ var _ = Describe("mapMachineToAgentMachine", func() {
 		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
 		Expect(c.Create(ctx, agentMachine)).To(Succeed())
 
-		requests := amr.mapMachineToAgentMachine(machine)
+		requests := amr.mapMachineToAgentMachine(ctx, machine)
 		Expect(len(requests)).To(Equal(1))
 
 		agentMachineKey := types.NamespacedName{
@@ -637,6 +637,6 @@ var _ = Describe("mapMachineToAgentMachine", func() {
 		machine := clusterv1.Machine{}
 		Expect(c.Get(ctx, key, &machine)).To(Succeed())
 
-		Expect(amr.mapMachineToAgentMachine(&machine)).To(BeEmpty())
+		Expect(amr.mapMachineToAgentMachine(ctx, &machine)).To(BeEmpty())
 	})
 })
