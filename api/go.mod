@@ -1,6 +1,6 @@
 module github.com/openshift/cluster-api-provider-agent/api
 
-go 1.17
+go 1.18
 
 require (
 	k8s.io/apimachinery v0.23.4

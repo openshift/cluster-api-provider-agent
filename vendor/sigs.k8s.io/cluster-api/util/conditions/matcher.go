@@ -21,6 +21,7 @@ import (
 
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
+
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
@@ -41,7 +42,7 @@ func (m matchConditions) Match(actual interface{}) (success bool, err error) {
 		elems = append(elems, MatchCondition(condition))
 	}
 
-	return gomega.ConsistOf(elems).Match(actual)
+	return gomega.ConsistOf(elems...).Match(actual)
 }
 
 func (m matchConditions) FailureMessage(actual interface{}) (message string) {
