@@ -41,7 +41,7 @@ NAMESPACE ?= cluster-api-provider-agent
 WATCH_NAMESPACE ?= ""
 AGENTS_NAMESPACE ?= ""
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+CRD_OPTIONS ?= "crd:preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.21
 
