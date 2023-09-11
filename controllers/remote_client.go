@@ -56,6 +56,10 @@ func (r *remoteClient) GetRemoteClient(ctx context.Context, secretNamespace stri
 	if !ok || len(kubeconfigData) == 0 {
 		return nil, errors.Errorf("Secret data for %s/%s  does not contain kubeconfig", secretKey.Namespace, secretKey.Name)
 	}
+
+	// error labeling secret shouldn't prevent this function from succeeding
+	ensureSecretLabel(ctx, r.localClient, &secret) //nolint:errcheck
+
 	clientConfig, err := clientcmd.NewClientConfigFromBytes(kubeconfigData)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get clientconfig from kubeconfig data in secret")

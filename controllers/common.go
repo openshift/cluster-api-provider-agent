@@ -17,15 +17,42 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
+	"fmt"
+
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
 	aiv1beta1 "github.com/openshift/assisted-service/api/v1beta1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+const (
+	BackupLabel      = "cluster.open-cluster-management.io/backup"
+	BackupLabelValue = "true"
+)
+
+func ensureSecretLabel(ctx context.Context, c client.Client, secret *corev1.Secret) error {
+	if secret == nil {
+		return nil
+	}
+	// Add backup label to the secret if not present
+	if !metav1.HasLabel(secret.ObjectMeta, BackupLabel) {
+		metav1.SetMetaDataLabel(&secret.ObjectMeta, BackupLabel, BackupLabelValue)
+		err := c.Update(ctx, secret)
+		if err != nil {
+			errorMessage := fmt.Sprintf("failed to set label %s:%s for secret %s/%s", BackupLabel, BackupLabelValue, secret.Namespace, secret.Name)
+			return errors.Wrapf(err, errorMessage)
+		}
+	}
+	return nil
+}
 
 func GetKubeClientSchemes(schemes *runtime.Scheme) *runtime.Scheme {
 	utilruntime.Must(scheme.AddToScheme(schemes))
