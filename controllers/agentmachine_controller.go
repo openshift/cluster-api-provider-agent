@@ -452,6 +452,9 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 		log.WithError(err).Errorf("Failed to get user-data secret %s", *machine.Spec.Bootstrap.DataSecretName)
 		return machineConfigPool, ignitionTokenSecretRef, err
 	}
+	if err := ensureSecretLabel(ctx, r.AgentClient, bootstrapDataSecret); err != nil {
+		log.WithError(err).Warnf("Failed to label secret %s/%s for backup", bootstrapDataSecret.Name, bootstrapDataSecret.Namespace)
+	}
 
 	ignitionConfig := &ignitionapi.Config{}
 	if err := json.Unmarshal(bootstrapDataSecret.Data["value"], ignitionConfig); err != nil {
@@ -485,7 +488,10 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: machine.Namespace,
 			Name:      ignitionTokenSecretName,
-			Labels:    map[string]string{"agent-install.openshift.io/watch": "true"},
+			Labels: map[string]string{
+				"agent-install.openshift.io/watch": "true",
+				BackupLabel:                        BackupLabelValue,
+			},
 		},
 		Data: map[string][]byte{"ignition-token": []byte(token)},
 	}
@@ -493,9 +499,9 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	// TODO: Use a dedicated secret per host and Delete the secret upon cleanup,
 	err := r.Client.Create(ctx, ignitionTokenSecret)
 	if apierrors.IsAlreadyExists(err) {
-		log.Infof("ignitionTokenSecret %s already exits, updating secret content",
+		log.Infof("ignitionTokenSecret %s already exists, updating secret content",
 			fmt.Sprintf("agent-%s", *machine.Spec.Bootstrap.DataSecretName))
-		err = r.Client.Update(ctx, ignitionTokenSecret)
+		err = ensureSecretLabel(ctx, r.Client, ignitionTokenSecret)
 	}
 	if err != nil {
 		log.WithError(err).Error("Failed to create ignitionTokenSecret")

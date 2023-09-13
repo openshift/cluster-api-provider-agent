@@ -231,6 +231,8 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 	log.Info("Creating clusterDeployment")
 	clusterDeployment := r.createClusterDeploymentObject(agentCluster, controlPlane)
 
+	r.labelControlPlaneSecrets(ctx, controlPlane, agentCluster.Namespace)
+
 	agentCluster.Status.ClusterDeploymentRef.Name = clusterDeployment.Name
 	agentCluster.Status.ClusterDeploymentRef.Namespace = clusterDeployment.Namespace
 	if err = r.Client.Create(ctx, clusterDeployment); err != nil {
@@ -296,6 +298,7 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 				Namespace: agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Namespace,
 				Name:      agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Name,
 			}
+			r.ensureSecretLabel(ctx, agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Name, agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Namespace)
 		}
 	}
 
@@ -319,4 +322,29 @@ func (r *AgentClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capiproviderv1alpha1.AgentCluster{}).
 		Complete(r)
+}
+
+func (r *AgentClusterReconciler) labelControlPlaneSecrets(ctx context.Context, controlPlane *ControlPlane, namespace string) {
+	if controlPlane != nil {
+		if controlPlane.PullSecret != "" {
+			r.ensureSecretLabel(ctx, controlPlane.PullSecret, namespace)
+		}
+		if controlPlane.KubeConfig != "" {
+			r.ensureSecretLabel(ctx, controlPlane.KubeConfig, namespace)
+
+		}
+		if controlPlane.KubeadminPassword != "" {
+			r.ensureSecretLabel(ctx, controlPlane.KubeadminPassword, namespace)
+		}
+	}
+}
+
+func (r *AgentClusterReconciler) ensureSecretLabel(ctx context.Context, name, namespace string) {
+	secret := &corev1.Secret{}
+	if err := r.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, secret); err != nil {
+		r.Log.WithError(err).Warnf("Couldn't find secret %s/%s in cluster", name, namespace)
+	}
+	if err := ensureSecretLabel(ctx, r.Client, secret); err != nil {
+		r.Log.WithError(err).Warn("Failed labeling secret")
+	}
 }
