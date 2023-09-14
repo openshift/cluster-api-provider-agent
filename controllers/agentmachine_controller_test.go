@@ -14,7 +14,7 @@ import (
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
 	aiv1beta1 "github.com/openshift/assisted-service/api/v1beta1"
 	aimodels "github.com/openshift/assisted-service/models"
-	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
+	capiproviderv1 "github.com/openshift/cluster-api-provider-agent/api/v1beta1"
 	v1 "github.com/openshift/custom-resource-status/conditions/v1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/sirupsen/logrus"
@@ -38,11 +38,11 @@ func init() {
 	_ = aiv1beta1.AddToScheme(scheme.Scheme)
 	_ = hivev1.AddToScheme(scheme.Scheme)
 	_ = hiveext.AddToScheme(scheme.Scheme)
-	_ = capiproviderv1alpha1.AddToScheme(scheme.Scheme)
+	_ = capiproviderv1.AddToScheme(scheme.Scheme)
 	_ = clusterv1.AddToScheme(scheme.Scheme)
 }
 
-func newAgentMachineRequest(agentMachine *capiproviderv1alpha1.AgentMachine) ctrl.Request {
+func newAgentMachineRequest(agentMachine *capiproviderv1.AgentMachine) ctrl.Request {
 	namespacedName := types.NamespacedName{
 		Namespace: agentMachine.ObjectMeta.Namespace,
 		Name:      agentMachine.ObjectMeta.Name,
@@ -50,7 +50,7 @@ func newAgentMachineRequest(agentMachine *capiproviderv1alpha1.AgentMachine) ctr
 	return ctrl.Request{NamespacedName: namespacedName}
 }
 
-func newAgentMachine(name, namespace string, spec capiproviderv1alpha1.AgentMachineSpec, ctx context.Context, c client.Client) (*capiproviderv1alpha1.AgentMachine, *clusterv1.Machine) {
+func newAgentMachine(name, namespace string, spec capiproviderv1.AgentMachineSpec, ctx context.Context, c client.Client) (*capiproviderv1.AgentMachine, *clusterv1.Machine) {
 	clusterDeployment := hivev1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("cluster-deployment-%s", name),
@@ -60,12 +60,12 @@ func newAgentMachine(name, namespace string, spec capiproviderv1alpha1.AgentMach
 	}
 	Expect(c.Create(ctx, &clusterDeployment)).To(BeNil())
 
-	agentCluster := capiproviderv1alpha1.AgentCluster{
+	agentCluster := capiproviderv1.AgentCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("agent-cluster-%s", name),
 			Namespace: namespace,
 		},
-		Status: capiproviderv1alpha1.AgentClusterStatus{ClusterDeploymentRef: capiproviderv1alpha1.ClusterDeploymentReference{Namespace: namespace, Name: clusterDeployment.Name}},
+		Status: capiproviderv1.AgentClusterStatus{ClusterDeploymentRef: capiproviderv1.ClusterDeploymentReference{Namespace: namespace, Name: clusterDeployment.Name}},
 	}
 	Expect(c.Create(ctx, &agentCluster)).To(BeNil())
 
@@ -138,13 +138,13 @@ func newAgentMachine(name, namespace string, spec capiproviderv1alpha1.AgentMach
 	Expect(c.Create(ctx, &machine)).To(BeNil())
 
 	machineOwnerRef := metav1.OwnerReference{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Machine", Name: machine.Name}
-	agentMachine := capiproviderv1alpha1.AgentMachine{
+	agentMachine := capiproviderv1.AgentMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
 		Spec:   spec,
-		Status: capiproviderv1alpha1.AgentMachineStatus{},
+		Status: capiproviderv1.AgentMachineStatus{},
 	}
 	agentMachine.ObjectMeta.OwnerReferences = append(agentMachine.ObjectMeta.OwnerReferences, machineOwnerRef)
 
@@ -235,8 +235,8 @@ var _ = Describe("agentmachine reconcile", func() {
 		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.InstalledCondition, Status: "True"})
 		Expect(c.Create(ctx, agent)).To(BeNil())
 
-		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
-		agentMachine.Status.AgentRef = &capiproviderv1alpha1.AgentReference{Namespace: testNamespace, Name: "agent-1"}
+		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
+		agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: testNamespace, Name: "agent-1"}
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
@@ -245,13 +245,13 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(BeNil())
 		Expect(agentMachine.Status.Ready).To(BeEquivalentTo(true))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("True"))
 		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("True"))
 	})
 
 	It("sets the finalizer and the machine delete hook annotation", func() {
-		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		Expect(c.Create(ctx, agentMachine)).To(Succeed())
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
@@ -273,7 +273,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		agent0.Status.Conditions = append(agent0.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: "True"})
 		Expect(c.Create(ctx, agent0)).To(BeNil())
 
-		agentMachine, _ := newAgentMachine("agentMachine-0", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, _ := newAgentMachine("agentMachine-0", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
@@ -281,18 +281,18 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(result).To(Equal(ctrl.Result{}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-0"}, agentMachine)).To(BeNil())
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Reason).To(Equal(capiproviderv1alpha1.NoSuitableAgentsReason))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentValidatedCondition).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Reason).To(Equal(capiproviderv1.NoSuitableAgentsReason))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentValidatedCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
 		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("False"))
 	})
 
 	It("agentMachine find agent end-to-end", func() {
-		spec := capiproviderv1alpha1.AgentMachineSpec{
+		spec := capiproviderv1.AgentMachineSpec{
 			AgentLabelSelector: &metav1.LabelSelector{
 				MatchLabels:      map[string]string{"hasGpu": "true"},
 				MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "location", Operator: "In", Values: []string{"datacenter2", "datacenter3"}}},
@@ -327,12 +327,12 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(result).To(Equal(ctrl.Result{}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine"}, agentMachine)).To(BeNil())
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentValidatedCondition).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, capiproviderv1alpha1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentValidatedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("False"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
 		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("False"))
 
 		Expect(agentMachine.Status.AgentRef.Name).To(BeEquivalentTo("agent-9"))
@@ -356,7 +356,7 @@ var _ = Describe("agentmachine reconcile", func() {
 	})
 
 	It("agent bind-unbind cleanup", func() {
-		spec := capiproviderv1alpha1.AgentMachineSpec{AgentLabelSelector: &metav1.LabelSelector{}}
+		spec := capiproviderv1.AgentMachineSpec{AgentLabelSelector: &metav1.LabelSelector{}}
 		agentMachine, machine := newAgentMachine("agentMachine", testNamespace, spec, ctx, c)
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 		agentMachineRequest := newAgentMachineRequest(agentMachine)
@@ -398,14 +398,14 @@ var _ = Describe("agentmachine reconcile", func() {
 	})
 
 	It("agentMachine agent with missing agentref", func() {
-		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 		agentMachineRequest := newAgentMachineRequest(agentMachine)
 
 		agent := newAgentWithProperties("agent-1", testNamespace, false, false, true, map[string]string{})
 		Expect(c.Create(ctx, agent)).To(BeNil())
 
-		clusterDepRef := capiproviderv1alpha1.ClusterDeploymentReference{Namespace: testNamespace, Name: "my-cd"}
+		clusterDepRef := capiproviderv1.ClusterDeploymentReference{Namespace: testNamespace, Name: "my-cd"}
 		log := amr.Log.WithFields(logrus.Fields{"agent_machine": "agentMachine-1", "agent_machine_namespace": testNamespace})
 		Expect(amr.updateFoundAgent(ctx, log, agentMachine, agent, clusterDepRef, "", nil)).To(BeNil())
 
@@ -418,10 +418,10 @@ var _ = Describe("agentmachine reconcile", func() {
 	})
 
 	It("non-existing agentMachine", func() {
-		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-		nonExistingAgentMachine, _ := newAgentMachine("agentMachine-2", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		nonExistingAgentMachine, _ := newAgentMachine("agentMachine-2", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(nonExistingAgentMachine))
 		Expect(err).To(BeNil())
@@ -429,7 +429,7 @@ var _ = Describe("agentmachine reconcile", func() {
 	})
 
 	It("agentMachine ready status", func() {
-		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		agentMachine.Status.Ready = true
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
@@ -439,7 +439,7 @@ var _ = Describe("agentmachine reconcile", func() {
 	})
 
 	It("removes agentmachine finalizer if agent is missing", func() {
-		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 		Expect(c.Delete(ctx, machine)).To(BeNil())
@@ -454,7 +454,7 @@ var _ = Describe("agentmachine reconcile", func() {
 	})
 
 	It("removes the delete hook and finalizer when agent ref is not set and machine is waiting on delete hook", func() {
-		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		agentMachine.Status.Ready = true
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
@@ -473,9 +473,9 @@ var _ = Describe("agentmachine reconcile", func() {
 	})
 
 	It("removes the delete hook and finalizer when agent is missing and machine is waiting on delete hook", func() {
-		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		agentMachine.Status.Ready = true
-		agentMachine.Status.AgentRef = &capiproviderv1alpha1.AgentReference{Namespace: testNamespace, Name: "missingAgent"}
+		agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: testNamespace, Name: "missingAgent"}
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
 		conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
@@ -493,7 +493,7 @@ var _ = Describe("agentmachine reconcile", func() {
 	})
 
 	It("removes the finalizer when the delete hook has already been removed", func() {
-		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
 		agentMachine.Status.Ready = true
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
@@ -514,9 +514,9 @@ var _ = Describe("agentmachine reconcile", func() {
 		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: "True"})
 		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: "True"})
 
-		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		agentMachine.Status.Ready = true
-		agentMachine.Status.AgentRef = &capiproviderv1alpha1.AgentReference{Namespace: agent.Namespace, Name: agent.Name}
+		agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: agent.Namespace, Name: agent.Name}
 
 		agent.ObjectMeta.Labels[AgentMachineRefLabelKey] = string(agentMachine.GetUID())
 		agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{
@@ -543,7 +543,7 @@ var _ = Describe("agentmachine reconcile", func() {
 	Context("waiting for agent", func() {
 		var (
 			agent        *aiv1beta1.Agent
-			agentMachine *capiproviderv1alpha1.AgentMachine
+			agentMachine *capiproviderv1.AgentMachine
 			machine      *clusterv1.Machine
 		)
 
@@ -552,9 +552,9 @@ var _ = Describe("agentmachine reconcile", func() {
 			agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: "True"})
 			agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: "True"})
 
-			agentMachine, machine = newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+			agentMachine, machine = newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 			agentMachine.Status.Ready = true
-			agentMachine.Status.AgentRef = &capiproviderv1alpha1.AgentReference{Namespace: agent.Namespace, Name: agent.Name}
+			agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: agent.Namespace, Name: agent.Name}
 
 			Expect(c.Create(ctx, agent)).To(BeNil())
 			Expect(c.Create(ctx, agentMachine)).To(BeNil())
@@ -613,7 +613,7 @@ var _ = Describe("mapMachineToAgentMachine", func() {
 	})
 
 	It("returns a request for the related agent machine", func() {
-		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		Expect(c.Create(ctx, agentMachine)).To(Succeed())
 
 		requests := amr.mapMachineToAgentMachine(machine)
@@ -628,7 +628,7 @@ var _ = Describe("mapMachineToAgentMachine", func() {
 
 	It("returns an empty list when no agent machine is found", func() {
 		// creates all the resource except the agent machine
-		newAgentMachine("agentMachine-1", testNamespace, capiproviderv1alpha1.AgentMachineSpec{}, ctx, c)
+		newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 
 		key := types.NamespacedName{
 			Name:      "machine-agentMachine-1",

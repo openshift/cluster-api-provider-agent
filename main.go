@@ -22,7 +22,7 @@ import (
 	"os"
 
 	aiv1beta1 "github.com/openshift/assisted-service/api/v1beta1"
-	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
+	capiproviderv1 "github.com/openshift/cluster-api-provider-agent/api/v1beta1"
 	"github.com/openshift/cluster-api-provider-agent/controllers"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/fields"
@@ -45,7 +45,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(capiproviderv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(capiproviderv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
