@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
-	capiproviderv1 "github.com/openshift/cluster-api-provider-agent/api/v1beta1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/openshift/hive/apis/hive/v1/agent"
 	"github.com/sirupsen/logrus"
@@ -26,11 +26,11 @@ import (
 func init() {
 	_ = hivev1.AddToScheme(scheme.Scheme)
 	_ = hiveext.AddToScheme(scheme.Scheme)
-	_ = capiproviderv1.AddToScheme(scheme.Scheme)
+	_ = capiproviderv1alpha1.AddToScheme(scheme.Scheme)
 	_ = clusterv1.AddToScheme(scheme.Scheme)
 }
 
-func newAgentClusterRequest(agentCluster *capiproviderv1.AgentCluster) ctrl.Request {
+func newAgentClusterRequest(agentCluster *capiproviderv1alpha1.AgentCluster) ctrl.Request {
 	namespacedName := types.NamespacedName{
 		Namespace: agentCluster.ObjectMeta.Namespace,
 		Name:      agentCluster.ObjectMeta.Name,
@@ -38,8 +38,8 @@ func newAgentClusterRequest(agentCluster *capiproviderv1.AgentCluster) ctrl.Requ
 	return ctrl.Request{NamespacedName: namespacedName}
 }
 
-func newAgentCluster(name, namespace string, spec capiproviderv1.AgentClusterSpec) *capiproviderv1.AgentCluster {
-	return &capiproviderv1.AgentCluster{
+func newAgentCluster(name, namespace string, spec capiproviderv1alpha1.AgentClusterSpec) *capiproviderv1alpha1.AgentCluster {
+	return &capiproviderv1alpha1.AgentCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -116,11 +116,11 @@ func createControlPlane(namespacedName *types.NamespacedName, baseDomain, pullSe
 	return obj
 }
 
-func createDefaultResources(ctx context.Context, c client.Client, clusterName, testNamespace, baseDomain, pullSecretName, kubeconfig, kubeadminPassword string) *capiproviderv1.AgentCluster {
+func createDefaultResources(ctx context.Context, c client.Client, clusterName, testNamespace, baseDomain, pullSecretName, kubeconfig, kubeadminPassword string) *capiproviderv1alpha1.AgentCluster {
 	namespaced := &types.NamespacedName{Name: clusterName, Namespace: testNamespace}
 	cluster := newCluster(namespaced)
-	agentCluster := newAgentCluster(clusterName, testNamespace, capiproviderv1.AgentClusterSpec{
-		IgnitionEndpoint: &capiproviderv1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
+	agentCluster := newAgentCluster(clusterName, testNamespace, capiproviderv1alpha1.AgentClusterSpec{
+		IgnitionEndpoint: &capiproviderv1alpha1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
 	})
 
 	agentCluster.OwnerReferences = []metav1.OwnerReference{{Name: cluster.Name, Kind: cluster.Kind, APIVersion: cluster.APIVersion}}
@@ -162,10 +162,10 @@ var _ = Describe("agentcluster reconcile", func() {
 	})
 
 	It("none existing agentCluster", func() {
-		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1.AgentClusterSpec{})
+		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1alpha1.AgentClusterSpec{})
 		Expect(c.Create(ctx, agentCluster)).To(BeNil())
 
-		noneExistingAgentCluster := newAgentCluster("agentCluster-2", testNamespace, capiproviderv1.AgentClusterSpec{})
+		noneExistingAgentCluster := newAgentCluster("agentCluster-2", testNamespace, capiproviderv1alpha1.AgentClusterSpec{})
 
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(noneExistingAgentCluster))
 		Expect(err).To(BeNil())
@@ -219,8 +219,8 @@ var _ = Describe("agentcluster reconcile", func() {
 
 	})
 	It("failed to find cluster", func() {
-		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1.AgentClusterSpec{
-			IgnitionEndpoint: &capiproviderv1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
+		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1alpha1.AgentClusterSpec{
+			IgnitionEndpoint: &capiproviderv1alpha1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
 		})
 		Expect(c.Create(ctx, agentCluster)).To(BeNil())
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
@@ -233,8 +233,8 @@ var _ = Describe("agentcluster reconcile", func() {
 		cluster := newCluster(&types.NamespacedName{Name: clusterName, Namespace: testNamespace})
 		cluster.Spec.ControlPlaneRef = nil
 
-		agentCluster := newAgentCluster(clusterName, testNamespace, capiproviderv1.AgentClusterSpec{
-			IgnitionEndpoint: &capiproviderv1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
+		agentCluster := newAgentCluster(clusterName, testNamespace, capiproviderv1alpha1.AgentClusterSpec{
+			IgnitionEndpoint: &capiproviderv1alpha1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
 		})
 		agentCluster.OwnerReferences = []metav1.OwnerReference{{Name: cluster.Name, Kind: cluster.Kind, APIVersion: cluster.APIVersion}}
 
@@ -247,8 +247,8 @@ var _ = Describe("agentcluster reconcile", func() {
 	})
 
 	It("failed to find clusterDeployment", func() {
-		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1.AgentClusterSpec{
-			IgnitionEndpoint: &capiproviderv1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
+		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1alpha1.AgentClusterSpec{
+			IgnitionEndpoint: &capiproviderv1alpha1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
 		})
 		agentCluster.Status.ClusterDeploymentRef.Name = "missing-cluster-deployment-name"
 		Expect(c.Create(ctx, agentCluster)).To(BeNil())
@@ -276,8 +276,8 @@ var _ = Describe("agentcluster reconcile", func() {
 		Expect(*agentClusterInstall.Spec.Networking.UserManagedNetworking).To(BeTrue())
 	})
 	It("agentCluster missing controlPlaneEndpoint", func() {
-		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1.AgentClusterSpec{
-			IgnitionEndpoint: &capiproviderv1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
+		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1alpha1.AgentClusterSpec{
+			IgnitionEndpoint: &capiproviderv1alpha1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
 		})
 
 		agentCluster.Status.ClusterDeploymentRef.Name = agentCluster.Name
@@ -293,7 +293,7 @@ var _ = Describe("agentcluster reconcile", func() {
 	})
 })
 
-func createClusterDeployment(c client.Client, ctx context.Context, agentCluster *capiproviderv1.AgentCluster, clusterName, baseDomain, pullSecretName string) {
+func createClusterDeployment(c client.Client, ctx context.Context, agentCluster *capiproviderv1alpha1.AgentCluster, clusterName, baseDomain, pullSecretName string) {
 	clusterDeployment := &hivev1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      agentCluster.Name,

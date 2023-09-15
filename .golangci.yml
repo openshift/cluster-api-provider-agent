@@ -25,7 +25,6 @@ run:
     - docs
     - models
     - restapi
-    - api
 
 # output configuration options
 output:
