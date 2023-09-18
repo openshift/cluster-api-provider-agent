@@ -29,7 +29,7 @@ import (
 	"github.com/go-openapi/swag"
 	aiv1beta1 "github.com/openshift/assisted-service/api/v1beta1"
 	aimodels "github.com/openshift/assisted-service/models"
-	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
+	capiproviderv1 "github.com/openshift/cluster-api-provider-agent/api/v1beta1"
 	openshiftconditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/thoas/go-funk"
@@ -90,7 +90,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	log.Info("AgentMachine Reconcile start")
 
-	agentMachine := &capiproviderv1alpha1.AgentMachine{}
+	agentMachine := &capiproviderv1.AgentMachine{}
 	if err := r.Get(ctx, req.NamespacedName, agentMachine); err != nil {
 		log.WithError(err).Errorf("Failed to get agentMachine %s", req.NamespacedName)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -160,7 +160,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, nil)
 }
 
-func (r *AgentMachineReconciler) removeFinalizer(ctx context.Context, agentMachine *capiproviderv1alpha1.AgentMachine) error {
+func (r *AgentMachineReconciler) removeFinalizer(ctx context.Context, agentMachine *capiproviderv1.AgentMachine) error {
 	if funk.ContainsString(agentMachine.GetFinalizers(), AgentMachineFinalizerName) {
 		controllerutil.RemoveFinalizer(agentMachine, AgentMachineFinalizerName)
 		if err := r.Update(ctx, agentMachine); err != nil {
@@ -170,7 +170,7 @@ func (r *AgentMachineReconciler) removeFinalizer(ctx context.Context, agentMachi
 	return nil
 }
 
-func (r *AgentMachineReconciler) removeHookAndFinalizer(ctx context.Context, machine *clusterv1.Machine, agentMachine *capiproviderv1alpha1.AgentMachine) error {
+func (r *AgentMachineReconciler) removeHookAndFinalizer(ctx context.Context, machine *clusterv1.Machine, agentMachine *capiproviderv1.AgentMachine) error {
 	annotations := machine.GetAnnotations()
 	if _, haveMachineHookAnnotation := annotations[machineDeleteHookName]; haveMachineHookAnnotation {
 		delete(annotations, machineDeleteHookName)
@@ -183,7 +183,7 @@ func (r *AgentMachineReconciler) removeHookAndFinalizer(ctx context.Context, mac
 	return r.removeFinalizer(ctx, agentMachine)
 }
 
-func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine, machine *clusterv1.Machine) (*ctrl.Result, error) {
+func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine, machine *clusterv1.Machine) (*ctrl.Result, error) {
 	// set delete hook if not present and machine not being deleted
 	annotations := machine.GetAnnotations()
 	if _, haveMachineHookAnnotation := annotations[machineDeleteHookName]; !haveMachineHookAnnotation && machine.DeletionTimestamp == nil {
@@ -288,7 +288,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	return nil, nil
 }
 
-func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus.FieldLogger, machine *clusterv1.Machine) (*capiproviderv1alpha1.AgentCluster, error) {
+func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus.FieldLogger, machine *clusterv1.Machine) (*capiproviderv1.AgentCluster, error) {
 	cluster, err := clusterutil.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
 	if err != nil {
 		log.Info("Machine is missing cluster label or cluster does not exist")
@@ -296,7 +296,7 @@ func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus
 	}
 
 	agentClusterRef := types.NamespacedName{Name: cluster.Spec.InfrastructureRef.Name, Namespace: cluster.Spec.InfrastructureRef.Namespace}
-	agentCluster := &capiproviderv1alpha1.AgentCluster{}
+	agentCluster := &capiproviderv1.AgentCluster{}
 	if err := r.Get(ctx, agentClusterRef, agentCluster); err != nil {
 		log.WithError(err).Errorf("Failed to get agentCluster %s", agentClusterRef)
 		return nil, err
@@ -305,8 +305,8 @@ func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus
 	return agentCluster, nil
 }
 
-func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine,
-	clusterDeploymentRef capiproviderv1alpha1.ClusterDeploymentReference, machineConfigPool string,
+func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine,
+	clusterDeploymentRef capiproviderv1.ClusterDeploymentReference, machineConfigPool string,
 	ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference) (*aiv1beta1.Agent, error) {
 
 	foundAgent, err := r.findAgentWithAgentMachineLabel(ctx, log, agentMachine)
@@ -362,14 +362,14 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 	return foundAgent, nil
 }
 
-func getAgentMachineRefLabel(agentMachine *capiproviderv1alpha1.AgentMachine) string {
+func getAgentMachineRefLabel(agentMachine *capiproviderv1.AgentMachine) string {
 	return string(agentMachine.GetUID())
 }
 
 // When we find an agent, we add a label to it in case we're interrupted before we can set agentMachine.Status.AgentRef
 // Here we look for such an agent, and if we find one, set the AgentRef.
 func (r *AgentMachineReconciler) findAgentWithAgentMachineLabel(ctx context.Context, log logrus.FieldLogger,
-	agentMachine *capiproviderv1alpha1.AgentMachine) (*aiv1beta1.Agent, error) {
+	agentMachine *capiproviderv1.AgentMachine) (*aiv1beta1.Agent, error) {
 
 	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{AgentMachineRefLabelKey: getAgentMachineRefLabel(agentMachine)}}
 	selector, err := metav1.LabelSelectorAsSelector(&labelSelector)
@@ -392,7 +392,7 @@ func (r *AgentMachineReconciler) findAgentWithAgentMachineLabel(ctx context.Cont
 }
 
 func (r *AgentMachineReconciler) updateAgentMachineWithFoundAgent(ctx context.Context, log logrus.FieldLogger,
-	agentMachine *capiproviderv1alpha1.AgentMachine, agent *aiv1beta1.Agent) error {
+	agentMachine *capiproviderv1.AgentMachine, agent *aiv1beta1.Agent) error {
 
 	log.Infof("Updating AgentMachine to reference Agent %s/%s", agent.Namespace, agent.Name)
 	agentMachine.Spec.ProviderID = swag.String("agent://" + agent.Name)
@@ -402,7 +402,7 @@ func (r *AgentMachineReconciler) updateAgentMachineWithFoundAgent(ctx context.Co
 	}
 
 	// We will perform the actual update in updateStatus()
-	agentMachine.Status.AgentRef = &capiproviderv1alpha1.AgentReference{Namespace: agent.Namespace, Name: agent.Name}
+	agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: agent.Namespace, Name: agent.Name}
 	agentMachine.Status.Addresses = getAddresses(agent)
 	agentMachine.Status.Ready = false
 
@@ -410,8 +410,8 @@ func (r *AgentMachineReconciler) updateAgentMachineWithFoundAgent(ctx context.Co
 }
 
 func (r *AgentMachineReconciler) updateFoundAgent(ctx context.Context, log logrus.FieldLogger,
-	agentMachine *capiproviderv1alpha1.AgentMachine, agent *aiv1beta1.Agent,
-	clusterDeploymentRef capiproviderv1alpha1.ClusterDeploymentReference, machineConfigPool string,
+	agentMachine *capiproviderv1.AgentMachine, agent *aiv1beta1.Agent,
+	clusterDeploymentRef capiproviderv1.ClusterDeploymentReference, machineConfigPool string,
 	ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference) error {
 
 	log.Infof("Updating Agent %s/%s to be referenced by AgentMachine", agent.Namespace, agent.Name)
@@ -511,7 +511,7 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	return machineConfigPool, ignitionTokenSecretRef, nil
 }
 
-func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1alpha1.AgentMachine) bool {
+func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1.AgentMachine) bool {
 	if !agent.Spec.Approved {
 		return false
 	}
@@ -527,13 +527,13 @@ func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1alpha1.Age
 	return true
 }
 
-func (r *AgentMachineReconciler) updateStatus(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine, err error) error {
+func (r *AgentMachineReconciler) updateStatus(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine, err error) error {
 	conditionPassed := setAgentReservedCondition(agentMachine, err)
 	if !conditionPassed {
-		conditions.MarkFalse(agentMachine, capiproviderv1alpha1.AgentSpecSyncedCondition, capiproviderv1alpha1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
-		conditions.MarkFalse(agentMachine, capiproviderv1alpha1.AgentValidatedCondition, capiproviderv1alpha1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
-		conditions.MarkFalse(agentMachine, capiproviderv1alpha1.AgentRequirementsMetCondition, capiproviderv1alpha1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
-		conditions.MarkFalse(agentMachine, capiproviderv1alpha1.InstalledCondition, capiproviderv1alpha1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
+		conditions.MarkFalse(agentMachine, capiproviderv1.AgentSpecSyncedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
+		conditions.MarkFalse(agentMachine, capiproviderv1.AgentValidatedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
+		conditions.MarkFalse(agentMachine, capiproviderv1.AgentRequirementsMetCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
+		conditions.MarkFalse(agentMachine, capiproviderv1.InstalledCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
 		err = r.setStatus(ctx, log, agentMachine)
 		return err
 	}
@@ -542,15 +542,15 @@ func (r *AgentMachineReconciler) updateStatus(ctx context.Context, log logrus.Fi
 	if getErr != nil {
 		return getErr
 	}
-	setConditionByAgentCondition(agentMachine, agent, capiproviderv1alpha1.AgentSpecSyncedCondition, aiv1beta1.SpecSyncedCondition, clusterv1.ConditionSeverityError)
-	setConditionByAgentCondition(agentMachine, agent, capiproviderv1alpha1.AgentValidatedCondition, aiv1beta1.ValidatedCondition, clusterv1.ConditionSeverityError)
-	setConditionByAgentCondition(agentMachine, agent, capiproviderv1alpha1.AgentRequirementsMetCondition, aiv1beta1.RequirementsMetCondition, clusterv1.ConditionSeverityError)
-	setConditionByAgentCondition(agentMachine, agent, capiproviderv1alpha1.InstalledCondition, aiv1beta1.InstalledCondition, clusterv1.ConditionSeverityInfo)
+	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.AgentSpecSyncedCondition, aiv1beta1.SpecSyncedCondition, clusterv1.ConditionSeverityError)
+	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.AgentValidatedCondition, aiv1beta1.ValidatedCondition, clusterv1.ConditionSeverityError)
+	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.AgentRequirementsMetCondition, aiv1beta1.RequirementsMetCondition, clusterv1.ConditionSeverityError)
+	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.InstalledCondition, aiv1beta1.InstalledCondition, clusterv1.ConditionSeverityInfo)
 	err = r.setStatus(ctx, log, agentMachine)
 	return err
 }
 
-func (r *AgentMachineReconciler) getAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) (*aiv1beta1.Agent, error) {
+func (r *AgentMachineReconciler) getAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine) (*aiv1beta1.Agent, error) {
 	agent := &aiv1beta1.Agent{}
 	agentRef := types.NamespacedName{Name: agentMachine.Status.AgentRef.Name, Namespace: agentMachine.Status.AgentRef.Namespace}
 	if err := r.AgentClient.Get(ctx, agentRef, agent); err != nil {
@@ -560,7 +560,7 @@ func (r *AgentMachineReconciler) getAgent(ctx context.Context, log logrus.FieldL
 	return agent, nil
 }
 
-func setConditionByAgentCondition(agentMachine *capiproviderv1alpha1.AgentMachine, agent *aiv1beta1.Agent,
+func setConditionByAgentCondition(agentMachine *capiproviderv1.AgentMachine, agent *aiv1beta1.Agent,
 	agentMachineConditionType clusterv1.ConditionType, agentConditionType openshiftconditionsv1.ConditionType,
 	failSeverity clusterv1.ConditionSeverity) bool {
 	agentCondition := openshiftconditionsv1.FindStatusCondition(agent.Status.Conditions, agentConditionType)
@@ -580,27 +580,27 @@ func setConditionByAgentCondition(agentMachine *capiproviderv1alpha1.AgentMachin
 	return false
 }
 
-func setAgentReservedCondition(agentMachine *capiproviderv1alpha1.AgentMachine, err error) bool {
+func setAgentReservedCondition(agentMachine *capiproviderv1.AgentMachine, err error) bool {
 	if agentMachine.Status.AgentRef == nil {
 		if err == nil {
-			conditions.MarkFalse(agentMachine, capiproviderv1alpha1.AgentReservedCondition, capiproviderv1alpha1.NoSuitableAgentsReason, clusterv1.ConditionSeverityWarning, "")
+			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.NoSuitableAgentsReason, clusterv1.ConditionSeverityWarning, "")
 		} else {
-			conditions.MarkFalse(agentMachine, capiproviderv1alpha1.AgentReservedCondition, capiproviderv1alpha1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, err.Error())
+			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, err.Error())
 		}
 		return false
 	}
 
-	conditions.MarkTrue(agentMachine, capiproviderv1alpha1.AgentReservedCondition)
+	conditions.MarkTrue(agentMachine, capiproviderv1.AgentReservedCondition)
 	return true
 }
 
-func (r *AgentMachineReconciler) setStatus(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1alpha1.AgentMachine) error {
+func (r *AgentMachineReconciler) setStatus(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine) error {
 	conditions.SetSummary(agentMachine,
-		conditions.WithConditions(capiproviderv1alpha1.AgentReservedCondition,
-			capiproviderv1alpha1.AgentSpecSyncedCondition,
-			capiproviderv1alpha1.AgentValidatedCondition,
-			capiproviderv1alpha1.AgentRequirementsMetCondition,
-			capiproviderv1alpha1.InstalledCondition,
+		conditions.WithConditions(capiproviderv1.AgentReservedCondition,
+			capiproviderv1.AgentSpecSyncedCondition,
+			capiproviderv1.AgentValidatedCondition,
+			capiproviderv1.AgentRequirementsMetCondition,
+			capiproviderv1.InstalledCondition,
 		),
 		conditions.WithStepCounterIf(agentMachine.ObjectMeta.DeletionTimestamp.IsZero()),
 		conditions.WithStepCounter())
@@ -648,7 +648,7 @@ func (r *AgentMachineReconciler) mapMachineToAgentMachine(machine client.Object)
 		},
 	)
 
-	amList := &capiproviderv1alpha1.AgentMachineList{}
+	amList := &capiproviderv1.AgentMachineList{}
 	opts := &client.ListOptions{
 		Namespace: machine.GetNamespace(),
 	}
@@ -689,7 +689,7 @@ func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespa
 			return make([]reconcile.Request, 0)
 		}
 
-		amList := &capiproviderv1alpha1.AgentMachineList{}
+		amList := &capiproviderv1.AgentMachineList{}
 		opts := &client.ListOptions{
 			Namespace: namespace,
 		}
@@ -715,7 +715,7 @@ func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespa
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&capiproviderv1alpha1.AgentMachine{}).
+		For(&capiproviderv1.AgentMachine{}).
 		Watches(&source.Kind{Type: &aiv1beta1.Agent{}}, handler.EnqueueRequestsFromMapFunc(mapAgentToAgentMachine)).
 		Watches(&source.Kind{Type: &clusterv1.Machine{}}, handler.EnqueueRequestsFromMapFunc(r.mapMachineToAgentMachine)).
 		Complete(r)
