@@ -1,6 +1,6 @@
 module github.com/openshift/cluster-api-provider-agent
 
-go 1.18
+go 1.17
 
 // Versions to be held for v1beta1
 // sigs.k8s.io/controller-runtime on v0.11.x
@@ -13,6 +13,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.18.1
+	github.com/openshift/cluster-api-provider-agent/api v0.0.0
 	github.com/openshift/custom-resource-status v1.1.1
 	github.com/openshift/hive/apis v0.0.0-20220222213051-def9088fdb5a
 	github.com/pkg/errors v0.9.1
@@ -27,7 +28,6 @@ require (
 )
 
 require (
-	github.com/openshift/api v0.0.0-20210216211028-bb81baaf35cd
 	github.com/openshift/assisted-service/api v0.0.0-20220811161334-09c4cb098e96
 	github.com/openshift/assisted-service/models v0.0.0
 )
@@ -84,6 +84,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/openshift/api v0.0.0-20210216211028-bb81baaf35cd // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.28.0 // indirect
@@ -121,5 +122,6 @@ require (
 replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20220811161334-09c4cb098e96
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20220811161334-09c4cb098e96
+	github.com/openshift/cluster-api-provider-agent/api => ./api
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.0.0
 )

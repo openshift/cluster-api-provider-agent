@@ -24,7 +24,7 @@ import (
 
 	"github.com/go-openapi/swag"
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
-	capiproviderv1 "github.com/openshift/cluster-api-provider-agent/api/v1beta1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/openshift/hive/apis/hive/v1/agent"
 	"github.com/pkg/errors"
@@ -78,7 +78,7 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}()
 	log.Info("AgentCluster Reconcile start")
 
-	agentCluster := &capiproviderv1.AgentCluster{}
+	agentCluster := &capiproviderv1alpha1.AgentCluster{}
 	if err := r.Get(ctx, req.NamespacedName, agentCluster); err != nil {
 		log.WithError(err).Errorf("Failed to get agentCluster %s", req.NamespacedName)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -124,7 +124,7 @@ func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructure
 }
 
 func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus.FieldLogger,
-	agentCluster *capiproviderv1.AgentCluster) (*ControlPlane, error) {
+	agentCluster *capiproviderv1alpha1.AgentCluster) (*ControlPlane, error) {
 
 	log.Info("Getting control plane")
 	// Fetch the CAPI Cluster.
@@ -175,7 +175,7 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 	return &controlPlane, nil
 }
 
-func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *capiproviderv1.AgentCluster,
+func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *capiproviderv1alpha1.AgentCluster,
 	controlPlane *ControlPlane) *hivev1.ClusterDeployment {
 	var kubeadminPassword *corev1.LocalObjectReference
 	if controlPlane.KubeadminPassword != "" {
@@ -222,7 +222,7 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 	return clusterDeployment
 }
 
-func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster) (ctrl.Result, error) {
+func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster) (ctrl.Result, error) {
 	controlPlane, err := r.getControlPlane(ctx, log, agentCluster)
 	if err != nil || controlPlane == nil {
 		return ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}, err
@@ -250,7 +250,7 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 	return ctrl.Result{}, nil
 }
 
-func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment, agentCluster *capiproviderv1.AgentCluster) error {
+func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment, agentCluster *capiproviderv1alpha1.AgentCluster) error {
 	log.Info("Setting AgentClusterInstall")
 	agentClusterInstall := &hiveext.AgentClusterInstall{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: clusterDeployment.Namespace, Name: clusterDeployment.Name}, agentClusterInstall); err != nil {
@@ -269,7 +269,7 @@ func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, 
 	return nil
 }
 
-func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment, agentCluster *capiproviderv1.AgentCluster) error {
+func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment, agentCluster *capiproviderv1alpha1.AgentCluster) error {
 	log.Infof("Creating AgentClusterInstall for clusterDeployment: %s %s", clusterDeployment.Namespace, clusterDeployment.Name)
 	agentClusterInstall := &hiveext.AgentClusterInstall{
 		ObjectMeta: metav1.ObjectMeta{
@@ -305,7 +305,7 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 	return r.Client.Create(ctx, agentClusterInstall)
 }
 
-func (r *AgentClusterReconciler) updateClusterStatus(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster) (ctrl.Result, error) {
+func (r *AgentClusterReconciler) updateClusterStatus(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1alpha1.AgentCluster) (ctrl.Result, error) {
 	log.Infof("Updating agentCluster status according to %s", agentCluster.Status.ClusterDeploymentRef.Name)
 	// Once the cluster have clusterDeploymentRef and ClusterInstallRef we should set the status to Ready
 	agentCluster.Status.Ready = true
@@ -320,7 +320,7 @@ func (r *AgentClusterReconciler) updateClusterStatus(ctx context.Context, log lo
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&capiproviderv1.AgentCluster{}).
+		For(&capiproviderv1alpha1.AgentCluster{}).
 		Complete(r)
 }
 

@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 	hiveext "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
 	aiv1beta1 "github.com/openshift/assisted-service/api/v1beta1"
-	capiproviderv1 "github.com/openshift/cluster-api-provider-agent/api/v1beta1"
+	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -26,18 +26,18 @@ func init() {
 	_ = aiv1beta1.AddToScheme(scheme.Scheme)
 	_ = hivev1.AddToScheme(scheme.Scheme)
 	_ = hiveext.AddToScheme(scheme.Scheme)
-	_ = capiproviderv1.AddToScheme(scheme.Scheme)
+	_ = capiproviderv1alpha1.AddToScheme(scheme.Scheme)
 	_ = clusterv1.AddToScheme(scheme.Scheme)
 }
 
-func createAgentMachine(name, namespace string, ready bool, machineAddresses []clusterv1.MachineAddress) *capiproviderv1.AgentMachine {
-	agentMachine := capiproviderv1.AgentMachine{
+func createAgentMachine(name, namespace string, ready bool, machineAddresses []clusterv1.MachineAddress) *capiproviderv1alpha1.AgentMachine {
+	agentMachine := capiproviderv1alpha1.AgentMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec:   capiproviderv1.AgentMachineSpec{},
-		Status: capiproviderv1.AgentMachineStatus{Ready: ready, Addresses: machineAddresses},
+		Spec:   capiproviderv1alpha1.AgentMachineSpec{},
+		Status: capiproviderv1alpha1.AgentMachineStatus{Ready: ready, Addresses: machineAddresses},
 	}
 	return &agentMachine
 }
