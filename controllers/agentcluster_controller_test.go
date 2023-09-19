@@ -147,7 +147,8 @@ var _ = Describe("agentcluster reconcile", func() {
 	)
 
 	BeforeEach(func() {
-		c = fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+		agentCluster := &capiproviderv1.AgentCluster{}
+		c = fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).WithStatusSubresource(agentCluster).Build()
 		mockCtrl = gomock.NewController(GinkgoT())
 
 		acr = &AgentClusterReconciler{
