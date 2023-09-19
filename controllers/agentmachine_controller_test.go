@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	k8sutilspointer "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -86,7 +86,7 @@ func newAgentMachine(name, namespace string, spec capiproviderv1.AgentMachineSpe
 				TLS: ignitionapi.TLS{
 					CertificateAuthorities: []ignitionapi.Resource{
 						{
-							Source: k8sutilspointer.StringPtr("data:text/plain;base64,encodedCACert"),
+							Source: ptr.To("data:text/plain;base64,encodedCACert"),
 						},
 					},
 				},
@@ -94,11 +94,11 @@ func newAgentMachine(name, namespace string, spec capiproviderv1.AgentMachineSpe
 			Config: ignitionapi.IgnitionConfig{
 				Merge: []ignitionapi.Resource{
 					{
-						Source: k8sutilspointer.StringPtr("https://endpoint/ignition"),
+						Source: ptr.To("https://endpoint/ignition"),
 						HTTPHeaders: []ignitionapi.HTTPHeader{
 							{
 								Name:  "Authorization",
-								Value: k8sutilspointer.StringPtr("Bearer encodedToken"),
+								Value: ptr.To("Bearer encodedToken"),
 							},
 						},
 					},
@@ -134,7 +134,7 @@ func newAgentMachine(name, namespace string, spec capiproviderv1.AgentMachineSpe
 		},
 		Status: clusterv1.MachineStatus{},
 	}
-	machine.ObjectMeta.Labels[clusterv1.ClusterLabelName] = cluster.Name
+	machine.ObjectMeta.Labels[clusterv1.ClusterNameLabel] = cluster.Name
 	Expect(c.Create(ctx, &machine)).To(BeNil())
 
 	machineOwnerRef := metav1.OwnerReference{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Machine", Name: machine.Name}
@@ -209,7 +209,8 @@ var _ = Describe("agentmachine reconcile", func() {
 	)
 
 	BeforeEach(func() {
-		c = fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+		agentMachine := &capiproviderv1.AgentMachine{}
+		c = fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).WithStatusSubresource(agentMachine).Build()
 		mockCtrl = gomock.NewController(GinkgoT())
 
 		amr = &AgentMachineReconciler{
@@ -616,7 +617,7 @@ var _ = Describe("mapMachineToAgentMachine", func() {
 		agentMachine, machine := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
 		Expect(c.Create(ctx, agentMachine)).To(Succeed())
 
-		requests := amr.mapMachineToAgentMachine(machine)
+		requests := amr.mapMachineToAgentMachine(ctx, machine)
 		Expect(len(requests)).To(Equal(1))
 
 		agentMachineKey := types.NamespacedName{
@@ -637,6 +638,6 @@ var _ = Describe("mapMachineToAgentMachine", func() {
 		machine := clusterv1.Machine{}
 		Expect(c.Get(ctx, key, &machine)).To(Succeed())
 
-		Expect(amr.mapMachineToAgentMachine(&machine)).To(BeEmpty())
+		Expect(amr.mapMachineToAgentMachine(ctx, &machine)).To(BeEmpty())
 	})
 })
