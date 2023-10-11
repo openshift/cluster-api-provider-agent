@@ -44,6 +44,22 @@ const (
 	//
 	// alpha: v0.4
 	ClusterTopology featuregate.Feature = "ClusterTopology"
+
+	// RuntimeSDK is a feature gate for the Runtime hooks and extensions functionality.
+	//
+	// alpha: v1.2
+	RuntimeSDK featuregate.Feature = "RuntimeSDK"
+
+	// KubeadmBootstrapFormatIgnition is a feature gate for the Ignition bootstrap format
+	// functionality.
+	//
+	// alpha: v1.1
+	KubeadmBootstrapFormatIgnition featuregate.Feature = "KubeadmBootstrapFormatIgnition"
+
+	// MachineSetPreflightChecks is a feature gate for the MachineSet preflight checks functionality.
+	//
+	// alpha: v1.5
+	MachineSetPreflightChecks featuregate.Feature = "MachineSetPreflightChecks"
 )
 
 func init() {
@@ -54,7 +70,10 @@ func init() {
 // To add a new feature, define a key for it above and add it here.
 var defaultClusterAPIFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	// Every feature should be initiated here:
-	MachinePool:        {Default: false, PreRelease: featuregate.Alpha},
-	ClusterResourceSet: {Default: true, PreRelease: featuregate.Beta},
-	ClusterTopology:    {Default: false, PreRelease: featuregate.Alpha},
+	MachinePool:                    {Default: false, PreRelease: featuregate.Alpha},
+	ClusterResourceSet:             {Default: true, PreRelease: featuregate.Beta},
+	ClusterTopology:                {Default: false, PreRelease: featuregate.Alpha},
+	KubeadmBootstrapFormatIgnition: {Default: false, PreRelease: featuregate.Alpha},
+	RuntimeSDK:                     {Default: false, PreRelease: featuregate.Alpha},
+	MachineSetPreflightChecks:      {Default: false, PreRelease: featuregate.Alpha},
 }

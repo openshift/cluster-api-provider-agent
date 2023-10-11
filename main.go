@@ -22,7 +22,7 @@ import (
 	"os"
 
 	aiv1beta1 "github.com/openshift/assisted-service/api/v1beta1"
-	capiproviderv1alpha1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
+	capiproviderv1 "github.com/openshift/cluster-api-provider-agent/api/v1beta1"
 	"github.com/openshift/cluster-api-provider-agent/controllers"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/fields"
@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 var (
@@ -45,7 +46,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(capiproviderv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(capiproviderv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -78,19 +79,21 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	scheme = controllers.GetKubeClientSchemes(scheme)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "7605f49b.agent-install.openshift.io",
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			DefaultSelector: cache.ObjectSelector{Field: fields.OneTermEqualSelector("metadata.namespace", watchNamespace)},
-			SelectorsByObject: cache.SelectorsByObject{
+		Cache: cache.Options{
+			DefaultFieldSelector: fields.OneTermEqualSelector("metadata.namespace", watchNamespace),
+			ByObject: map[client.Object]cache.ByObject{
 				&aiv1beta1.Agent{}: {Field: fields.OneTermEqualSelector("metadata.namespace", agentsNamespace)},
 			},
-		}),
-	})
+		},
+	},
+	)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
@@ -101,10 +104,16 @@ func main() {
 	if agentsNamespace != "" {
 		setupLog.Info("Watching Agents objects only in namespace for reconciliation", "agent-namespace", agentsNamespace)
 		agentMgr, err2 := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-			MetricsBindAddress: "0",
-			Scheme:             scheme,
-			LeaderElection:     false,
-			Namespace:          agentsNamespace,
+			Metrics: metricsserver.Options{
+				BindAddress: "0",
+			},
+			Scheme:         scheme,
+			LeaderElection: false,
+			Cache: cache.Options{
+				ByObject: map[client.Object]cache.ByObject{
+					&aiv1beta1.Agent{}: {Field: fields.OneTermEqualSelector("metadata.namespace", agentsNamespace)},
+				},
+			},
 		})
 		if err2 != nil {
 			setupLog.Error(err, "unable to start Agent manager")
