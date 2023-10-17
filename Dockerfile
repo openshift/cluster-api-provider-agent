@@ -1,12 +1,12 @@
 # Build the manager binary
-FROM golang:1.17 as builder
+FROM registry.ci.openshift.org/openshift/release:golang-1.20 as builder
 
 WORKDIR /workspace
 COPY . .
 # Build
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
 
-FROM registry.ci.openshift.org/ocp/4.10:base
+FROM registry.ci.openshift.org/ocp/4.14:base
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532

@@ -101,6 +101,7 @@ type AgentMachineStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:deprecatedversion:warning="v1alpha1 is a deprecated version for AgentMachine"
 
 // AgentMachine is the Schema for the agentmachines API
 type AgentMachine struct {
