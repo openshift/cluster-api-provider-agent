@@ -27,7 +27,6 @@ type AgentMachineTemplateSpec struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=agentmachinetemplates,scope=Namespaced,categories=cluster-api,shortName=agentmt
-//+kubebuilder:deprecatedversion:warning="v1alpha1 is a deprecated version for AgentMachineTemplate"
 
 // AgentMachineTemplate is the Schema for the agentmachinetemplates API
 type AgentMachineTemplate struct {

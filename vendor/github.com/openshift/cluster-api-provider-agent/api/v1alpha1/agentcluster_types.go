@@ -78,7 +78,6 @@ type AgentClusterStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:deprecatedversion:warning="v1alpha1 is a deprecated version for AgentCluster"
 
 // AgentCluster is the Schema for the agentclusters API
 type AgentCluster struct {
