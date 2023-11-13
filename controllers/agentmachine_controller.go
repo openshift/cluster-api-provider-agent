@@ -500,7 +500,7 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	if apierrors.IsAlreadyExists(err) {
 		log.Infof("ignitionTokenSecret %s already exists, updating secret content",
 			fmt.Sprintf("agent-%s", *machine.Spec.Bootstrap.DataSecretName))
-		err = ensureSecretLabel(ctx, r.Client, ignitionTokenSecret)
+		err = r.Client.Update(ctx, ignitionTokenSecret)
 	}
 	if err != nil {
 		log.WithError(err).Error("Failed to create ignitionTokenSecret")
