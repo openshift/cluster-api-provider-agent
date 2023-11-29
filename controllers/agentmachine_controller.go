@@ -119,11 +119,6 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return *res, err
 	}
 
-	// If the AgentMachine is ready, we have nothing to do
-	if agentMachine.Status.Ready {
-		return ctrl.Result{}, nil
-	}
-
 	agentCluster, err := r.getAgentCluster(ctx, log, machine)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -145,13 +140,35 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		var foundAgent *aiv1beta1.Agent
 		foundAgent, err = r.findAgent(ctx, log, agentMachine, agentCluster.Status.ClusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef)
 		if foundAgent == nil || err != nil {
-			return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, err)
+			return ctrl.Result{RequeueAfter: time.Minute}, r.updateStatus(ctx, log, agentMachine, err)
 		}
 
 		err = r.updateAgentMachineWithFoundAgent(ctx, log, agentMachine, foundAgent)
 		if err != nil {
 			log.WithError(err).Error("failed to update AgentMachine with found agent")
 			return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, err)
+		}
+	} else {
+		// Ensure that the agent exists and that the agent is attached to the cluster
+		agent, err := r.getAgent(ctx, log, agentMachine)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				log.WithError(err).Infof("failed to get agent %s. assuming the agent no longer exists", agentMachine.Status.AgentRef.Name)
+				agentMachine.Status.AgentRef = nil
+				return ctrl.Result{}, r.setStatus(ctx, log, agentMachine)
+			} else {
+				log.WithError(err).Errorf("failed to get agent %s - retrying", agentMachine.Status.AgentRef.Name)
+				return ctrl.Result{RequeueAfter: time.Minute}, err
+			}
+		}
+
+		if agent.Spec.ClusterDeploymentName == nil {
+			// Agent was unbound prematurely, unset agentref and reconcile again to set to a new agent
+			agentMachine.Status.AgentRef = nil
+			if err := r.unbindAgent(ctx, log, agent); err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{RequeueAfter: time.Minute}, r.setStatus(ctx, log, agentMachine)
 		}
 	}
 
@@ -250,17 +267,8 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 		}
 	}
 
-	if funk.Contains(agent.ObjectMeta.Labels, AgentMachineRefLabelKey) || agent.Spec.ClusterDeploymentName != nil {
-		r.Log.Info("Removing ClusterDeployment ref to unbind Agent")
-		delete(agent.ObjectMeta.Labels, AgentMachineRefLabelKey)
-		delete(agent.ObjectMeta.Annotations, AgentMachineRefNamespace)
-		agent.Spec.MachineConfigPool = ""
-		agent.Spec.IgnitionEndpointTokenReference = nil
-		agent.Spec.ClusterDeploymentName = nil
-		if err := r.Update(ctx, agent); err != nil {
-			log.WithError(err).Error("failed to remove the Agent's ClusterDeployment ref")
-			return &ctrl.Result{}, err
-		}
+	if err := r.unbindAgent(ctx, log, agent); err != nil {
+		return &ctrl.Result{}, err
 	}
 
 	// Remove the hook when either the host is back to some kind of unbound state, reclaim fails, or is not enabled
@@ -285,6 +293,22 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	}
 
 	return nil, nil
+}
+
+func (r *AgentMachineReconciler) unbindAgent(ctx context.Context, log logrus.FieldLogger, agent *aiv1beta1.Agent) error {
+	if funk.Contains(agent.ObjectMeta.Labels, AgentMachineRefLabelKey) || agent.Spec.ClusterDeploymentName != nil {
+		log.Infof("removing ClusterDeployment ref to unbind Agent %s", agent.Name)
+		delete(agent.ObjectMeta.Labels, AgentMachineRefLabelKey)
+		delete(agent.ObjectMeta.Annotations, AgentMachineRefNamespace)
+		agent.Spec.MachineConfigPool = ""
+		agent.Spec.IgnitionEndpointTokenReference = nil
+		agent.Spec.ClusterDeploymentName = nil
+		if err := r.Update(ctx, agent); err != nil {
+			log.WithError(err).Error("failed to remove the Agent's ClusterDeployment ref")
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus.FieldLogger, machine *clusterv1.Machine) (*capiproviderv1.AgentCluster, error) {
@@ -339,7 +363,7 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 
 	// Find an agent that is unbound and whose validations pass
 	for i := 0; i < len(agents.Items) && foundAgent == nil; i++ {
-		if isValidAgent(&agents.Items[i], agentMachine) {
+		if isValidAgent(&agents.Items[i]) {
 			foundAgent = &agents.Items[i]
 			log.Infof("Found agent to associate with AgentMachine: %s/%s", foundAgent.Namespace, foundAgent.Name)
 			err = r.updateFoundAgent(ctx, log, agentMachine, foundAgent, clusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef)
@@ -387,6 +411,7 @@ func (r *AgentMachineReconciler) findAgentWithAgentMachineLabel(ctx context.Cont
 		return nil, nil
 	}
 
+	//TODO: Can a situation exist where there's > 1 agent
 	return &agents.Items[0], nil
 }
 
@@ -422,6 +447,12 @@ func (r *AgentMachineReconciler) updateFoundAgent(ctx context.Context, log logru
 	}
 	agent.ObjectMeta.Labels[AgentMachineRefLabelKey] = getAgentMachineRefLabel(agentMachine)
 	agent.ObjectMeta.Annotations[AgentMachineRefNamespace] = agentMachine.GetNamespace()
+
+	if err := r.AgentClient.Update(ctx, agent); err != nil {
+		log.WithError(err).Errorf("failed to update found Agent %s", agent.Name)
+		return err
+	}
+	log.Infof("binding Agent %s to Agentmachine %s", agent.Name, agentMachine.Name)
 	agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{Namespace: clusterDeploymentRef.Namespace, Name: clusterDeploymentRef.Name}
 	agent.Spec.MachineConfigPool = machineConfigPool
 	agent.Spec.IgnitionEndpointTokenReference = ignitionTokenSecretRef
@@ -510,7 +541,7 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	return machineConfigPool, ignitionTokenSecretRef, nil
 }
 
-func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1.AgentMachine) bool {
+func isValidAgent(agent *aiv1beta1.Agent) bool {
 	if !agent.Spec.Approved {
 		return false
 	}
