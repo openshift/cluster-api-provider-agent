@@ -65,6 +65,7 @@ type AgentMachineReconciler struct {
 	Scheme      *runtime.Scheme
 	Log         logrus.FieldLogger
 	AgentClient client.Client
+	APIReader   client.Reader
 }
 
 //+kubebuilder:rbac:groups=capi-provider.agent-install.openshift.io,resources=agentmachines,verbs=get;list;watch;create;update;patch;delete
@@ -552,7 +553,7 @@ func (r *AgentMachineReconciler) updateStatus(ctx context.Context, log logrus.Fi
 func (r *AgentMachineReconciler) getAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine) (*aiv1beta1.Agent, error) {
 	agent := &aiv1beta1.Agent{}
 	agentRef := types.NamespacedName{Name: agentMachine.Status.AgentRef.Name, Namespace: agentMachine.Status.AgentRef.Namespace}
-	if err := r.AgentClient.Get(ctx, agentRef, agent); err != nil {
+	if err := r.APIReader.Get(ctx, agentRef, agent); err != nil {
 		log.WithError(err).Errorf("Failed to get agent %s", agentRef)
 		return nil, err
 	}

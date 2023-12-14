@@ -218,6 +218,7 @@ var _ = Describe("agentmachine reconcile", func() {
 			Scheme:      scheme.Scheme,
 			Log:         logrus.New(),
 			AgentClient: c,
+			APIReader:   c,
 		}
 	})
 
