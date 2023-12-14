@@ -136,6 +136,7 @@ func main() {
 		Scheme:      mgr.GetScheme(),
 		Log:         logger,
 		AgentClient: agentClient,
+		APIReader:   mgr.GetAPIReader(),
 	}).SetupWithManager(mgr, agentsNamespace); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AgentMachine")
 		os.Exit(1)
