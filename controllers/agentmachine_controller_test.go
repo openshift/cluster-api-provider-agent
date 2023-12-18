@@ -154,9 +154,10 @@ func newAgentMachine(name, namespace string, spec capiproviderv1.AgentMachineSpe
 func newAgent(name, namespace string, spec aiv1beta1.AgentSpec) *aiv1beta1.Agent {
 	return &aiv1beta1.Agent{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    make(map[string]string),
+			Name:        name,
+			Namespace:   namespace,
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
 		},
 		Spec: spec,
 		Status: aiv1beta1.AgentStatus{
@@ -640,5 +641,70 @@ var _ = Describe("mapMachineToAgentMachine", func() {
 		Expect(c.Get(ctx, key, &machine)).To(Succeed())
 
 		Expect(amr.mapMachineToAgentMachine(ctx, &machine)).To(BeEmpty())
+	})
+})
+
+var _ = Describe("mapAgentToAgentMachine", func() {
+	var (
+		c             client.Client
+		amr           *AgentMachineReconciler
+		ctx           = context.Background()
+		testNamespace = "test-namespace"
+	)
+
+	BeforeEach(func() {
+		c = fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+		amr = &AgentMachineReconciler{
+			Client:      c,
+			Scheme:      scheme.Scheme,
+			Log:         logrus.New(),
+			AgentClient: c,
+		}
+	})
+
+	It("returns a request for the related agent machine", func() {
+		agent := newAgent("agent", testNamespace, aiv1beta1.AgentSpec{})
+		agent.ObjectMeta.Annotations[AgentMachineRefNamespace] = testNamespace
+		Expect(c.Create(ctx, agent)).To(BeNil())
+		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
+		agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: testNamespace, Name: "agent"}
+		Expect(c.Create(ctx, agentMachine)).To(Succeed())
+
+		requests := amr.mapAgentToAgentMachine(ctx, agent)
+		Expect(len(requests)).To(Equal(1))
+
+		agentMachineKey := types.NamespacedName{
+			Name:      "agentMachine-1",
+			Namespace: testNamespace,
+		}
+		Expect(requests[0].NamespacedName).To(Equal(agentMachineKey))
+	})
+
+	It("returns nothing if the agent isn't valid", func() {
+		agent := newAgent("agent", testNamespace, aiv1beta1.AgentSpec{Approved: true})
+		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: boolToConditionStatus(false)})
+		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: boolToConditionStatus(false)})
+		Expect(c.Create(ctx, agent)).To(BeNil())
+		agentMachine1, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
+		Expect(c.Create(ctx, agentMachine1)).To(Succeed())
+		agentMachine2, _ := newAgentMachine("agentMachine-2", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
+		Expect(c.Create(ctx, agentMachine2)).To(Succeed())
+
+		requests := amr.mapAgentToAgentMachine(ctx, agent)
+		Expect(len(requests)).To(Equal(0))
+	})
+
+	It("returns unmatched agent machines if no match is found", func() {
+		agent := newAgent("agent", testNamespace, aiv1beta1.AgentSpec{Approved: true})
+		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: boolToConditionStatus(false)})
+		agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: boolToConditionStatus(true)})
+		Expect(c.Create(ctx, agent)).To(BeNil())
+		agentMachine1, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
+		Expect(c.Create(ctx, agentMachine1)).To(Succeed())
+		agentMachine2, _ := newAgentMachine("agentMachine-2", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
+		Expect(c.Create(ctx, agentMachine2)).To(Succeed())
+
+		requests := amr.mapAgentToAgentMachine(ctx, agent)
+		Expect(len(requests)).To(Equal(2))
 	})
 })
