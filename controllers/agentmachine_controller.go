@@ -340,7 +340,7 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 
 	// Find an agent that is unbound and whose validations pass
 	for i := 0; i < len(agents.Items) && foundAgent == nil; i++ {
-		if isValidAgent(&agents.Items[i], agentMachine) {
+		if isValidAgent(&agents.Items[i]) {
 			foundAgent = &agents.Items[i]
 			log.Infof("Found agent to associate with AgentMachine: %s/%s", foundAgent.Namespace, foundAgent.Name)
 			err = r.updateFoundAgent(ctx, log, agentMachine, foundAgent, clusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef)
@@ -511,7 +511,7 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	return machineConfigPool, ignitionTokenSecretRef, nil
 }
 
-func isValidAgent(agent *aiv1beta1.Agent, agentMachine *capiproviderv1.AgentMachine) bool {
+func isValidAgent(agent *aiv1beta1.Agent) bool {
 	if !agent.Spec.Approved {
 		return false
 	}
@@ -675,31 +675,33 @@ func (r *AgentMachineReconciler) mapMachineToAgentMachine(ctx context.Context, m
 	return []reconcile.Request{}
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespace string) error {
-	mapAgentToAgentMachine := func(ctx context.Context, agent client.Object) []reconcile.Request {
-		log := r.Log.WithFields(
-			logrus.Fields{
-				"agent":           agent.GetName(),
-				"agent_namespace": agent.GetNamespace(),
-			})
+func (r *AgentMachineReconciler) mapAgentToAgentMachine(ctx context.Context, a client.Object) []reconcile.Request {
+	log := r.Log.WithFields(
+		logrus.Fields{
+			"agent":           a.GetName(),
+			"agent_namespace": a.GetNamespace(),
+		})
 
-		namespace, ok := agent.GetAnnotations()[AgentMachineRefNamespace]
-		if !ok {
-			return make([]reconcile.Request, 0)
-		}
+	amList := &capiproviderv1.AgentMachineList{}
+	opts := &client.ListOptions{}
+	mappedAgent := false
 
-		amList := &capiproviderv1.AgentMachineList{}
-		opts := &client.ListOptions{
-			Namespace: namespace,
-		}
+	// The annotation will only be present on an Agent that's mapped to an AgentMachine
+	namespace, ok := a.GetAnnotations()[AgentMachineRefNamespace]
+	if ok {
+		opts.Namespace = namespace
+		mappedAgent = true
+	}
 
-		if err := r.List(ctx, amList, opts); err != nil {
-			log.WithError(err).Error("failed to list agent machines")
-			return []reconcile.Request{}
-		}
+	if err := r.List(ctx, amList, opts); err != nil {
+		log.WithError(err).Error("failed to list agent machines")
+		return []reconcile.Request{}
+	}
 
-		reply := make([]reconcile.Request, 0, len(amList.Items))
+	reply := make([]reconcile.Request, 0, len(amList.Items))
+	if mappedAgent {
+		// If the Agent is mapped to an AgentMachine, return only that AgentMachine
+		agent := a
 		for _, agentMachine := range amList.Items {
 			if agentMachine.Status.AgentRef != nil &&
 				agentMachine.Status.AgentRef.Namespace == agent.GetNamespace() &&
@@ -711,12 +713,34 @@ func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespa
 				break
 			}
 		}
-		return reply
+	} else {
+		// If the Agent isn't mapped to an AgentMachine and it's "valid" for use, return any AgentMachines
+		// that don't have an Agent mapped to them yet
+		agent := &aiv1beta1.Agent{}
+		if err := r.Get(ctx, types.NamespacedName{Name: a.GetName(), Namespace: a.GetNamespace()}, agent); err != nil {
+			return []reconcile.Request{}
+		}
+		if !isValidAgent(agent) {
+			return []reconcile.Request{}
+		}
+		for _, agentMachine := range amList.Items {
+			if agentMachine.Status.AgentRef == nil {
+				reply = append(reply, reconcile.Request{NamespacedName: types.NamespacedName{
+					Namespace: agentMachine.Namespace,
+					Name:      agentMachine.Name,
+				}})
+			}
+		}
 	}
 
+	return reply
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespace string) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capiproviderv1.AgentMachine{}).
-		Watches(&aiv1beta1.Agent{}, handler.EnqueueRequestsFromMapFunc(mapAgentToAgentMachine)).
+		Watches(&aiv1beta1.Agent{}, handler.EnqueueRequestsFromMapFunc(r.mapAgentToAgentMachine)).
 		Watches(&clusterv1.Machine{}, handler.EnqueueRequestsFromMapFunc(r.mapMachineToAgentMachine)).
 		Complete(r)
 }
