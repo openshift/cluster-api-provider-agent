@@ -146,7 +146,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		var foundAgent *aiv1beta1.Agent
 		foundAgent, err = r.findAgent(ctx, log, agentMachine, agentCluster.Status.ClusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef)
 		if foundAgent == nil || err != nil {
-			return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, err)
+			return ctrl.Result{Requeue: true}, r.updateStatus(ctx, log, agentMachine, err)
 		}
 
 		err = r.updateAgentMachineWithFoundAgent(ctx, log, agentMachine, foundAgent)

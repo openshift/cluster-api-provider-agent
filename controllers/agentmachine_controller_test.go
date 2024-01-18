@@ -259,7 +259,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{}))
+		Expect(result).To(Equal(ctrl.Result{Requeue: true}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
 		Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeTrue())
@@ -281,7 +281,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
 		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{}))
+		Expect(result).To(Equal(ctrl.Result{Requeue: true}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-0"}, agentMachine)).To(BeNil())
 		Expect(conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("False"))
