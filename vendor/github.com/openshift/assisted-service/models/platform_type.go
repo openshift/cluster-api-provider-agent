@@ -20,8 +20,12 @@ import (
 type PlatformType string
 
 func NewPlatformType(value PlatformType) *PlatformType {
-	v := value
-	return &v
+	return &value
+}
+
+// Pointer returns a pointer to a freshly-allocated PlatformType.
+func (m PlatformType) Pointer() *PlatformType {
+	return &m
 }
 
 const (
@@ -29,14 +33,17 @@ const (
 	// PlatformTypeBaremetal captures enum value "baremetal"
 	PlatformTypeBaremetal PlatformType = "baremetal"
 
+	// PlatformTypeNutanix captures enum value "nutanix"
+	PlatformTypeNutanix PlatformType = "nutanix"
+
 	// PlatformTypeVsphere captures enum value "vsphere"
 	PlatformTypeVsphere PlatformType = "vsphere"
 
-	// PlatformTypeOvirt captures enum value "ovirt"
-	PlatformTypeOvirt PlatformType = "ovirt"
-
 	// PlatformTypeNone captures enum value "none"
 	PlatformTypeNone PlatformType = "none"
+
+	// PlatformTypeExternal captures enum value "external"
+	PlatformTypeExternal PlatformType = "external"
 )
 
 // for schema
@@ -44,7 +51,7 @@ var platformTypeEnum []interface{}
 
 func init() {
 	var res []PlatformType
-	if err := json.Unmarshal([]byte(`["baremetal","vsphere","ovirt","none"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["baremetal","nutanix","vsphere","none","external"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
