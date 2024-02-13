@@ -220,7 +220,7 @@ see also, typesafe implementations: LastIndexOfInt_, LastIndexOfInt64_, LastInde
 funk.ToMap
 ..........
 
-Transforms a slice of structs to a map based on a ``pivot`` field.
+Transforms a slice or an array of structs to a map based on a ``pivot`` field.
 
 .. code-block:: go
 
@@ -241,6 +241,33 @@ Transforms a slice of structs to a map based on a ``pivot`` field.
     results := []*Foo{f, b}
 
     mapping := funk.ToMap(results, "ID") // map[int]*Foo{1: f, 2: b}
+
+funk.ToSet
+..........
+
+Transforms an array or a slice to a set (a map with zero-size values).
+
+.. code-block:: go
+
+    f := Foo{
+        ID:        1,
+        FirstName: "Gilles",
+        LastName:  "Fabio",
+        Age:       70,
+    }
+
+    b := Foo{
+        ID:        2,
+        FirstName: "Florent",
+        LastName:  "Messa",
+        Age:       80,
+    }
+
+    mapping := funk.ToSet([]Foo{f, b}) // map[Foo]stuct{}{f: struct{}{}, b: struct{}{}}
+
+    mapping := funk.ToSet([4]int{1, 1, 2, 2}) // map[int]struct{}{1: struct{}{}, 2: struct{}{}}
+
+
 
 funk.Filter
 ...........
@@ -554,7 +581,7 @@ Creates an array of the own enumerable map values or struct field values.
 
 .. code-block:: go
 
-    funk.Values(map[string]int{"one": 1, "two": 2}) // []string{1, 2} (iteration order is not guaranteed)
+    funk.Values(map[string]int{"one": 1, "two": 2}) // []int{1, 2} (iteration order is not guaranteed)
 
     foo := &Foo{
         ID:        1,
@@ -626,6 +653,29 @@ see also, typesafe implementations: UniqInt_, UniqInt64_, UniqFloat32_, UniqFloa
 .. _UniqInt: https://godoc.org/github.com/thoas/go-funk#UniqInt
 .. _UniqInt64: https://godoc.org/github.com/thoas/go-funk#UniqInt64
 .. _UniqString: https://godoc.org/github.com/thoas/go-funk#UniqString
+
+funk.UniqBy
+.........
+
+Creates an array with unique values returned by a callback.
+
+.. code-block:: go
+
+    funk.UniqBy([]int{0, 1, 1, 2, 3, 0, 0, 12}, func(nbr int) int {
+		return nbr % 3
+	}) // []int{0, 1, 2}
+
+    foo1 := Foo{
+        ID: 42,
+        FirstName: "Bob",
+    }
+    foo2 := Foo{
+        ID: 42,
+        FirstName: "Bob",
+    }
+    funk.UniqBy([]Foo{foo1, foo2}, func(f Foo) int {
+		return f.ID
+	}) // []Foo{ Foo{ID: 42, Firstname: "Bob"} }
 
 funk.Drop
 .........

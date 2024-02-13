@@ -410,7 +410,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		clusterDepRef := capiproviderv1.ClusterDeploymentReference{Namespace: testNamespace, Name: "my-cd"}
 		log := amr.Log.WithFields(logrus.Fields{"agent_machine": "agentMachine-1", "agent_machine_namespace": testNamespace})
-		Expect(amr.updateFoundAgent(ctx, log, agentMachine, agent, clusterDepRef, "", nil)).To(BeNil())
+		Expect(amr.updateFoundAgent(ctx, log, agentMachine, agent, clusterDepRef, "", nil, nil)).To(BeNil())
 
 		result, err := amr.Reconcile(ctx, agentMachineRequest)
 		Expect(err).To(BeNil())

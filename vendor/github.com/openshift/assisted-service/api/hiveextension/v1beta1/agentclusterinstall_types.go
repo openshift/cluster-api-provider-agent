@@ -79,6 +79,11 @@ const (
 	ClusterBackendErrorMsg    string = "The Spec could not be synced due to backend error:"
 	ClusterInputErrorReason   string = "InputError"
 	ClusterInputErrorMsg      string = "The Spec could not be synced due to an input error:"
+
+	ClusterLastInstallationPreparationFailedOKReason    string = "There is no failing prior preparation attempt"
+	ClusterLastInstallationPreparationFailedErrorReason string = "The last installation preparation failed"
+	ClusterLastInstallationPreparationPending           string = "Cluster preparation has never been performed for this cluster"
+	ClusterLastInstallationPreparationFailedCondition   string = "LastInstallationPreparationFailed"
 )
 
 // +genclient
@@ -150,9 +155,25 @@ type AgentClusterInstallSpec struct {
 	// +optional
 	APIVIP string `json:"apiVIP,omitempty"`
 
+	// APIVIPs are the virtual IPs used to reach the OpenShift cluster's API.
+	// Enter one IP address for single-stack clusters, or up to two for dual-stack clusters (at
+	// most one IP address per IP stack used). The order of stacks should be the same as order
+	// of subnets in Cluster Networks, Service Networks, and Machine Networks.
+	// +kubebuilder:validation:MaxItems=2
+	// +optional
+	APIVIPs []string `json:"apiVIPs,omitempty"`
+
 	// IngressVIP is the virtual IP used for cluster ingress traffic.
 	// +optional
 	IngressVIP string `json:"ingressVIP,omitempty"`
+
+	// IngressVIPs are the virtual IPs used for cluster ingress traffic.
+	// Enter one IP address for single-stack clusters, or up to two for dual-stack clusters (at
+	// most one IP address per IP stack used). The order of stacks should be the same as order
+	// of subnets in Cluster Networks, Service Networks, and Machine Networks.
+	// +kubebuilder:validation:MaxItems=2
+	// +optional
+	IngressVIPs []string `json:"ingressVIPs,omitempty"`
 
 	// HoldInstallation will prevent installation from happening when true.
 	// Inspection and validation will proceed as usual, but once the RequirementsMet condition is true,
@@ -175,6 +196,15 @@ type AgentClusterInstallSpec struct {
 	// PlatformType is the name for the specific platform upon which to perform the installation.
 	// +optional
 	PlatformType PlatformType `json:"platformType,omitempty"`
+
+	// ExternalPlatformSpec represents generic infrastructure provider.
+	// Platform-specific components should be supplemented separately.
+	// +optional
+	ExternalPlatformSpec *ExternalPlatformSpec `json:"external,omitempty"`
+
+	// Set to true to allow control plane nodes to be schedulable
+	// +optional
+	MastersSchedulable bool `json:"mastersSchedulable,omitempty"`
 }
 
 // IgnitionEndpoint stores the data to of the custom ignition endpoint.
@@ -228,9 +258,19 @@ type AgentClusterInstallStatus struct {
 	// +optional
 	APIVIP string `json:"apiVIP,omitempty"`
 
+	// APIVIPs are the virtual IPs used to reach the OpenShift cluster's API.
+	// +kubebuilder:validation:MaxItems=2
+	// +optional
+	APIVIPs []string `json:"apiVIPs,omitempty"`
+
 	// IngressVIP is the virtual IP used for cluster ingress traffic.
 	// +optional
 	IngressVIP string `json:"ingressVIP,omitempty"`
+
+	// IngressVIPs are the virtual IPs used for cluster ingress traffic.
+	// +kubebuilder:validation:MaxItems=2
+	// +optional
+	IngressVIPs []string `json:"ingressVIPs,omitempty"`
 
 	// UserManagedNetworking indicates if the networking is managed by the user.
 	// +optional
@@ -287,7 +327,7 @@ type Networking struct {
 	NetworkType string `json:"networkType,omitempty"`
 
 	// UserManagedNetworking indicates if the networking is managed by the user.
-	// For single-node installations, set to true or leave empty.
+	// For single-node installations (none or external platform), set to true or leave empty.
 	// +optional
 	UserManagedNetworking *bool `json:"userManagedNetworking,omitempty"`
 }
@@ -342,8 +382,38 @@ const (
 )
 
 // PlatformType is a specific supported infrastructure provider.
-// +kubebuilder:validation:Enum="";BareMetal;None;VSphere
+// +kubebuilder:validation:Enum="";BareMetal;None;VSphere;Nutanix;External
 type PlatformType string
+
+// CloudControllerManager describes the type of cloud controller manager to be enabled.
+// +kubebuilder:validation:Enum="";BareMetal;None;VSphere;Nutanix;External
+type CloudControllerManager string
+
+const (
+	// CloudControllerManagerTypeExternal specifies that an external cloud provider is to be configured.
+	CloudControllerManagerTypeExternal = "External"
+
+	// CloudControllerManagerTypeNone specifies that no cloud provider is to be configured.
+	CloudControllerManagerTypeNone = ""
+)
+
+// ExternalPlatformSpec holds the desired state for the generic External infrastructure provider.
+type ExternalPlatformSpec struct {
+	// PlatformName holds the arbitrary string representing the infrastructure provider name, expected to be set at the installation time.
+	// This field is solely for informational and reporting purposes and is not expected to be used for decision-making.
+	// +kubebuilder:default:="Unknown"
+	// +default="Unknown"
+	// +kubebuilder:validation:XValidation:rule="oldSelf == 'Unknown' || self == oldSelf",message="platform name cannot be changed once set"
+	// +optional
+	PlatformName string `json:"platformName,omitempty"`
+
+	// CloudControllerManager when set to external, this property will enable an external cloud provider.
+	// +kubebuilder:default:=""
+	// +default=""
+	// +kubebuilder:validation:Enum="";External
+	// +optional
+	CloudControllerManager CloudControllerManager `json:"cloudControllerManager,omitempty"`
+}
 
 const (
 	// BareMetalPlatformType represents managed bare metal infrastructure.
@@ -354,6 +424,12 @@ const (
 
 	// VSpherePlatformType represents VMWare vSphere infrastructure.
 	VSpherePlatformType PlatformType = "VSphere"
+
+	// NutanixPlatformType represents Nutanix infrastructure.
+	NutanixPlatformType PlatformType = "Nutanix"
+
+	// ExternalPlatformType represents external cloud provider infrastructure.
+	ExternalPlatformType PlatformType = "External"
 )
 
 // AgentMachinePool is a pool of machines to be installed.
