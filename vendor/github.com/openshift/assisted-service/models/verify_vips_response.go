@@ -14,13 +14,13 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// FeatureSupportLevels feature support levels
+// VerifyVipsResponse list of verified vips.
 //
-// swagger:model feature-support-levels
-type FeatureSupportLevels []*FeatureSupportLevel
+// swagger:model verify_vips_response
+type VerifyVipsResponse []*VerifiedVip
 
-// Validate validates this feature support levels
-func (m FeatureSupportLevels) Validate(formats strfmt.Registry) error {
+// Validate validates this verify vips response
+func (m VerifyVipsResponse) Validate(formats strfmt.Registry) error {
 	var res []error
 
 	for i := 0; i < len(m); i++ {
@@ -47,8 +47,8 @@ func (m FeatureSupportLevels) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-// ContextValidate validate this feature support levels based on the context it is used
-func (m FeatureSupportLevels) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+// ContextValidate validate this verify vips response based on the context it is used
+func (m VerifyVipsResponse) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
 
 	for i := 0; i < len(m); i++ {

@@ -102,6 +102,19 @@ type AgentServiceConfigSpec struct {
 	// +kubebuilder:validation:default:=disabled
 	// +optional
 	IPXEHTTPRoute string `json:"iPXEHTTPRoute,omitempty"`
+	// UnauthenticatedRegistries is a list of registries from which container images can be pulled
+	// without authentication. They will be appended to the default list (quay.io,
+	// registry.svc.ci.openshift.org). Any registry on this list will not require credentials
+	// to be in the pull secret validated by the assisted-service.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="List of container registries without authentication"
+	// +optional
+	UnauthenticatedRegistries []string `json:"unauthenticatedRegistries,omitempty"`
+	// OSImageCACertRef is a reference to a config map containing a certificate authority certificate
+	// this is an optional certificate to allow a user to add a certificate authority for a HTTPS source of images
+	// this certificate will be used by the assisted-image-service when pulling OS images.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="OS Image CA Cert ConfigMap reference"
+	// +optional
+	OSImageCACertRef *corev1.LocalObjectReference `json:"OSImageCACertRef,omitempty"`
 }
 
 // ConditionType related to our reconcile loop in addition to all the reasons
@@ -154,10 +167,28 @@ const (
 	ReasonWebHookClusterRoleBindingFailure string = "ReasonWebHookClusterRoleBindingFailure"
 	// ReasonWebHookClusterRoleFailure when there was a failure configuring/deploying the webhook cluster role.
 	ReasonWebHookClusterRoleFailure string = "ReasonWebHookClusterRoleFailure"
+	// ReasonRBACConfigurationFailure when there was a failure configuring/deploying RBAC entities on hosted clusters.
+	ReasonRBACConfigurationFailure string = "ReasonRBACConfigurationFailure"
 	// ReasonWebHookServiceAccountFailure when there was a failure related to the webhook's service account.
 	ReasonWebHookServiceAccountFailure string = "ReasonWebHookServiceAccountFailure"
 	// ReasonWebHookAPIServiceFailure when there was a failure related to the webhook's API service.
 	ReasonWebHookAPIServiceFailure string = "ReasonWebHookAPIServiceFailure"
+	//ReasonWebHookEndpointFailure when there was a failure related to configuring the endpoint that routes to the admission service.
+	ReasonWebHookEndpointFailure string = "ReasonWebHookEndpointFailure"
+	// ReasonServiceServiceAccount when there was a failure configuring/deploying the assisted-service service-account.
+	ReasonServiceServiceAccount string = "ServiceServiceAccount"
+	// ReasonNamespaceCreationFailure when there was a failure creating the namespace.
+	ReasonNamespaceCreationFailure string = "NamespaceCreationFailure"
+	// ReasonSpokeClusterCRDsSyncFailure when there was a failure syncing spoke cluster CRDs.
+	ReasonSpokeClusterCRDsSyncFailure string = "SpokeClusterCRDsSyncFailure"
+	// ReasonKubeconfigSecretFetchFailure when there was a failure fetching kubeconfig secret.
+	ReasonKubeconfigSecretFetchFailure string = "ReasonKubeconfigSecretFetchFailure"
+	// ReasonSpokeClientCreationFailure when there was a failure creating spoke client.
+	ReasonSpokeClientCreationFailure string = "ReasonSpokeClientCreationFailure"
+	// ReasonKonnectivityAgentFailure when there was a failure creating the namespace.
+	ReasonKonnectivityAgentFailure string = "KonnectivityAgentFailure"
+	// ReasonOSImageCACertRefFailure when there has been a failure resolving the OS image CA using OSImageCACertRef.
+	ReasonOSImageCACertRefFailure string = "OSImageCACertRefFailure"
 
 	// IPXEHTTPRouteEnabled is expected value in IPXEHTTPRoute to enable the route
 	IPXEHTTPRouteEnabled string = "enabled"
