@@ -1,9 +1,10 @@
 # See the OWNERS docs: https://git.k8s.io/community/contributors/guide/owners.md
 
 approvers:
+- danmanor
+- eifrach
+- adriengentil
 - eranco74
 - avishayt
-- osherdp
 - carbonin
 - CrystalChun
-- filanov
