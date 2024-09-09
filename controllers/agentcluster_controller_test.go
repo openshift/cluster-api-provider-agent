@@ -18,9 +18,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func init() {
@@ -229,8 +231,6 @@ var _ = Describe("agentcluster reconcile", func() {
 		Expect(result).To(Equal(ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}))
 	})
 	It("no control plane reference in cluster", func() {
-		clusterName := "test-cluster-name"
-
 		cluster := newCluster(&types.NamespacedName{Name: clusterName, Namespace: testNamespace})
 		cluster.Spec.ControlPlaneRef = nil
 
@@ -291,6 +291,102 @@ var _ = Describe("agentcluster reconcile", func() {
 		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
 		Expect(err).To(BeNil())
 		Expect(result).To(Equal(ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}))
+	})
+	Context("pausing agent cluster", func() {
+		It("doesn't create a clusterDeployment when paused", func() {
+			agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1.AgentClusterSpec{
+				IgnitionEndpoint: &capiproviderv1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
+			})
+			agentCluster.ObjectMeta.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+			Expect(c.Create(ctx, agentCluster)).To(BeNil())
+
+			result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+			clusterDeployment := &hivev1.ClusterDeployment{}
+			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).NotTo(Succeed())
+		})
+		It("doesn't error finding non-existing clusterDeployment when paused", func() {
+			agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1.AgentClusterSpec{
+				IgnitionEndpoint: &capiproviderv1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
+			})
+			agentCluster.Status.ClusterDeploymentRef.Name = "missing-cluster-deployment-name"
+			agentCluster.ObjectMeta.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+			Expect(c.Create(ctx, agentCluster)).To(BeNil())
+
+			result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+		})
+		It("orphans its cluster deployment when paused", func() {
+			agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
+			createClusterDeployment(c, ctx, agentCluster, clusterName, baseDomain, pullSecret)
+			agentCluster.Status.Ready = true
+			agentCluster.ObjectMeta.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+			Expect(c.Update(ctx, agentCluster)).To(BeNil())
+
+			result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			clusterDeployment := &hivev1.ClusterDeployment{}
+			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeFalse())
+		})
+		It("recovers its cluster deployment when unpaused", func() {
+			agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
+			createClusterDeployment(c, ctx, agentCluster, clusterName, baseDomain, pullSecret)
+
+			clusterDeployment := &hivev1.ClusterDeployment{}
+			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			Expect(controllerutil.SetOwnerReference(agentCluster, clusterDeployment, acr.Scheme)).To(Succeed())
+			clusterDeployment.Labels = map[string]string{AgentClusterRefLabel: agentCluster.Name}
+			Expect(c.Update(ctx, clusterDeployment)).To(Succeed())
+			agentCluster.ObjectMeta.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+			Expect(c.Update(ctx, agentCluster)).To(BeNil())
+
+			result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeFalse())
+			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, agentCluster)).To(Succeed())
+			agentCluster.ObjectMeta.Annotations = nil
+			Expect(c.Update(ctx, agentCluster)).To(BeNil())
+
+			result, err = acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeTrue())
+		})
+		It("doesn't delete the cluster deployment when paused and agent cluster gets deleted", func() {
+			agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
+			createClusterDeployment(c, ctx, agentCluster, clusterName, baseDomain, pullSecret)
+
+			clusterDeployment := &hivev1.ClusterDeployment{}
+			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			Expect(controllerutil.SetOwnerReference(agentCluster, clusterDeployment, acr.Scheme)).To(Succeed())
+			clusterDeployment.Labels = map[string]string{AgentClusterRefLabel: agentCluster.Name}
+			Expect(c.Update(ctx, clusterDeployment)).To(Succeed())
+			agentCluster.ObjectMeta.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+			Expect(controllerutil.AddFinalizer(agentCluster, agentClusterFinalizer)).To(BeTrue())
+			Expect(c.Update(ctx, agentCluster)).To(Succeed())
+
+			result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			Expect(c.Delete(ctx, agentCluster)).To(Succeed())
+			result, err = acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeFalse())
+			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, agentCluster)).NotTo(Succeed())
+		})
 	})
 })
 
