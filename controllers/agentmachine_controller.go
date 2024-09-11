@@ -208,7 +208,11 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	}
 
 	// Skip agent unbind if AgentMachine is paused
-	if paused := agentMachine.Annotations[clusterv1.PausedAnnotation]; !agentMachine.ObjectMeta.DeletionTimestamp.IsZero() && paused == "true" {
+	if paused := agentMachine.Annotations[clusterv1.PausedAnnotation]; paused == "true" {
+		if agentMachine.ObjectMeta.DeletionTimestamp.IsZero() {
+			log.Info("AgentMachine paused, but not being deleted yet")
+			return nil, nil
+		}
 		log.Info("Skipping unbinding agent since agent machine is paused. Removing machine delete hook annotation")
 		if err := r.removeHookAndFinalizer(ctx, machine, agentMachine); err != nil {
 			log.Error(err)
