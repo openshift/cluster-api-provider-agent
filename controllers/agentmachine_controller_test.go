@@ -646,6 +646,26 @@ var _ = Describe("agentmachine reconcile", func() {
 			Expect(agent.Spec.ClusterDeploymentName).NotTo(BeNil())
 			Expect(agent.Spec.ClusterDeploymentName.Name).To(BeEquivalentTo("cluster-deployment-agentMachine-1"))
 		})
+
+		It("doesn't unbind the agent if the AgentMachine doesn't have a deletion timestamp", func() {
+			agentMachine.ObjectMeta.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+			controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
+			Expect(c.Update(ctx, agentMachine)).To(Succeed())
+
+			// mark the machine for deletion
+			Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
+			conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
+			machine.Annotations = map[string]string{machineDeleteHookName: ""}
+			Expect(c.Update(ctx, machine)).To(BeNil())
+
+			result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			Expect(c.Get(ctx, types.NamespacedName{Name: "agent-1", Namespace: testNamespace}, agent)).To(Succeed())
+			Expect(agent.Spec.ClusterDeploymentName).NotTo(BeNil())
+			Expect(agent.Spec.ClusterDeploymentName.Name).To(BeEquivalentTo("cluster-deployment-agentMachine-1"))
+		})
 	})
 })
 
