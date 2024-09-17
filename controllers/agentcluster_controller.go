@@ -218,7 +218,12 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 }
 
 func (r *AgentClusterReconciler) findOrCreateClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster) (ctrl.Result, error) {
-	clusterDeployment, err := r.findClusterDeployment(ctx, agentCluster)
+	controlPlane, err := r.getControlPlane(ctx, log, agentCluster)
+	if err != nil || controlPlane == nil {
+		return ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}, err
+	}
+
+	clusterDeployment, err := r.findClusterDeployment(ctx, agentCluster, controlPlane)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -228,10 +233,10 @@ func (r *AgentClusterReconciler) findOrCreateClusterDeployment(ctx context.Conte
 		agentCluster.Status.ClusterDeploymentRef.Namespace = clusterDeployment.Namespace
 		return ctrl.Result{}, nil
 	}
-	return r.createClusterDeployment(ctx, log, agentCluster)
+	return r.createClusterDeployment(ctx, log, agentCluster, controlPlane)
 }
 
-func (r *AgentClusterReconciler) findClusterDeployment(ctx context.Context, agentCluster *capiproviderv1.AgentCluster) (*hivev1.ClusterDeployment, error) {
+func (r *AgentClusterReconciler) findClusterDeployment(ctx context.Context, agentCluster *capiproviderv1.AgentCluster, controlPlane *ControlPlane) (*hivev1.ClusterDeployment, error) {
 	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{AgentClusterRefLabel: agentCluster.Name}}
 	selector, err := metav1.LabelSelectorAsSelector(&labelSelector)
 	if err != nil {
@@ -239,11 +244,11 @@ func (r *AgentClusterReconciler) findClusterDeployment(ctx context.Context, agen
 	}
 
 	clusterDeployments := &hivev1.ClusterDeploymentList{}
-	if err := r.Client.List(ctx, clusterDeployments, &client.ListOptions{LabelSelector: selector}); err != nil {
+	if err := r.Client.List(ctx, clusterDeployments, &client.ListOptions{LabelSelector: selector, Namespace: controlPlane.ClusterName}); err != nil {
 		return nil, err
 	}
 
-	if len(clusterDeployments.Items) == 0 {
+	if len(clusterDeployments.Items) != 1 {
 		return nil, nil
 	}
 	return &clusterDeployments.Items[0], nil
@@ -260,7 +265,7 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 	clusterDeployment := &hivev1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      agentCluster.Name,
-			Namespace: agentCluster.Namespace,
+			Namespace: controlPlane.ClusterName,
 			OwnerReferences: []metav1.OwnerReference{{
 				Kind:       agentCluster.Kind,
 				APIVersion: agentCluster.APIVersion,
@@ -299,19 +304,14 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 	return clusterDeployment
 }
 
-func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster) (ctrl.Result, error) {
-	controlPlane, err := r.getControlPlane(ctx, log, agentCluster)
-	if err != nil || controlPlane == nil {
-		return ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}, err
-	}
-
+func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster, controlPlane *ControlPlane) (ctrl.Result, error) {
 	log.Info("Creating clusterDeployment")
 	clusterDeployment := r.createClusterDeploymentObject(agentCluster, controlPlane)
 
 	r.labelControlPlaneSecrets(ctx, controlPlane, agentCluster.Namespace)
 	agentCluster.Status.ClusterDeploymentRef.Name = clusterDeployment.Name
 	agentCluster.Status.ClusterDeploymentRef.Namespace = clusterDeployment.Namespace
-	if err = r.Client.Create(ctx, clusterDeployment); err != nil {
+	if err := r.Client.Create(ctx, clusterDeployment); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Warn("ClusterDeployment already exists")
 		} else {
