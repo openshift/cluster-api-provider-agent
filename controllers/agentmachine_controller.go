@@ -389,13 +389,13 @@ func (r *AgentMachineReconciler) findAgentWithAgentMachineLabel(ctx context.Cont
 	selector, err := metav1.LabelSelectorAsSelector(&labelSelector)
 	if err != nil {
 		log.WithError(err).Error("failed to convert label selector to selector")
-		return nil, err
+		return nil, client.IgnoreNotFound(err)
 	}
 
 	agents := &aiv1beta1.AgentList{}
 	if err := r.AgentClient.List(ctx, agents, &client.ListOptions{LabelSelector: selector}); err != nil {
 		log.WithError(err).Error("failed to list agents")
-		return nil, err
+		return nil, client.IgnoreNotFound(err)
 	}
 
 	if len(agents.Items) == 0 {
