@@ -235,12 +235,12 @@ func (r *AgentClusterReconciler) findClusterDeployment(ctx context.Context, agen
 	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{AgentClusterRefLabel: agentCluster.Name}}
 	selector, err := metav1.LabelSelectorAsSelector(&labelSelector)
 	if err != nil {
-		return nil, err
+		return nil, client.IgnoreNotFound(err)
 	}
 
 	clusterDeployments := &hivev1.ClusterDeploymentList{}
 	if err := r.Client.List(ctx, clusterDeployments, &client.ListOptions{LabelSelector: selector}); err != nil {
-		return nil, err
+		return nil, client.IgnoreNotFound(err)
 	}
 
 	if len(clusterDeployments.Items) == 0 {
