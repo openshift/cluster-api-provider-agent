@@ -1,6 +1,6 @@
 module github.com/openshift/cluster-api-provider-agent/api
 
-go 1.17
+go 1.21
 
 require (
 	github.com/openshift/api v0.0.0-20230915112357-693d4b64813c
