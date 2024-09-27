@@ -26,14 +26,14 @@ const (
 
 // Common ConditionReason used by Cluster API objects.
 const (
-	// DeletingReason (Severity=Info) documents an condition not in Status=True because the underlying object it is currently being deleted.
+	// DeletingReason (Severity=Info) documents a condition not in Status=True because the underlying object it is currently being deleted.
 	DeletingReason = "Deleting"
 
-	// DeletionFailedReason (Severity=Warning) documents an condition not in Status=True because the underlying object
+	// DeletionFailedReason (Severity=Warning) documents a condition not in Status=True because the underlying object
 	// encountered problems during deletion. This is a warning because the reconciler will retry deletion.
 	DeletionFailedReason = "DeletionFailed"
 
-	// DeletedReason (Severity=Info) documents an condition not in Status=True because the underlying object was deleted.
+	// DeletedReason (Severity=Info) documents a condition not in Status=True because the underlying object was deleted.
 	DeletedReason = "Deleted"
 
 	// IncorrectExternalRefReason (Severity=Error) documents a CAPI object with an incorrect external object reference.
@@ -55,13 +55,26 @@ const (
 
 // ANCHOR_END: CommonConditions
 
-// Conditions and condition Reasons for the Cluster object
+// Conditions and condition Reasons for the ClusterClass object.
+const (
+	// ClusterClassVariablesReconciledCondition reports if the ClusterClass variables, including both inline and external
+	// variables, have been successfully reconciled.
+	// This signals that the ClusterClass is ready to be used to default and validate variables on Clusters using
+	// this ClusterClass.
+	ClusterClassVariablesReconciledCondition ConditionType = "VariablesReconciled"
+
+	// VariableDiscoveryFailedReason (Severity=Error) documents a ClusterClass with VariableDiscovery extensions that
+	// failed.
+	VariableDiscoveryFailedReason = "VariableDiscoveryFailed"
+)
+
+// Conditions and condition Reasons for the Cluster object.
 
 const (
 	// ControlPlaneInitializedCondition reports if the cluster's control plane has been initialized such that the
-	// cluster's apiserver is reachable and at least one control plane Machine has a node reference. Once this
-	// condition is marked true, its value is never changed. See the ControlPlaneReady condition for an indication of
-	// the current readiness of the cluster's control plane.
+	// cluster's apiserver is reachable. If no Control Plane provider is in use this condition reports that at least one
+	// control plane Machine has a node reference. Once this Condition is marked true, its value is never changed. See
+	// the ControlPlaneReady condition for an indication of the current readiness of the cluster's control plane.
 	ControlPlaneInitializedCondition ConditionType = "ControlPlaneInitialized"
 
 	// MissingNodeRefReason (Severity=Info) documents a cluster waiting for at least one control plane Machine to have
@@ -75,7 +88,7 @@ const (
 	// ControlPlaneReadyCondition reports the ready condition from the control plane object defined for this cluster.
 	// This condition is mirrored from the Ready condition in the control plane ref object, and
 	// the absence of this condition might signal problems in the reconcile external loops or the fact that
-	// the control plane provider does not not implements the Ready condition yet.
+	// the control plane provider does not implement the Ready condition yet.
 	ControlPlaneReadyCondition ConditionType = "ControlPlaneReady"
 
 	// WaitingForControlPlaneFallbackReason (Severity=Info) documents a cluster waiting for the control plane
@@ -91,7 +104,7 @@ const (
 	WaitingForControlPlaneAvailableReason = "WaitingForControlPlaneAvailable"
 )
 
-// Conditions and condition Reasons for the Machine object
+// Conditions and condition Reasons for the Machine object.
 
 const (
 	// BootstrapReadyCondition reports a summary of current status of the bootstrap object defined for this machine.
@@ -132,12 +145,16 @@ const (
 )
 
 const (
-	// MachineHealthCheckSuccededCondition is set on machines that have passed a healthcheck by the MachineHealthCheck controller.
+	// MachineHealthCheckSucceededCondition is set on machines that have passed a healthcheck by the MachineHealthCheck controller.
 	// In the event that the health check fails it will be set to False.
-	MachineHealthCheckSuccededCondition ConditionType = "HealthCheckSucceeded"
+	MachineHealthCheckSucceededCondition ConditionType = "HealthCheckSucceeded"
 
 	// MachineHasFailureReason is the reason used when a machine has either a FailureReason or a FailureMessage set on its status.
 	MachineHasFailureReason = "MachineHasFailure"
+
+	// HasRemediateMachineAnnotationReason is the reason that get's set at the MachineHealthCheckSucceededCondition when a machine
+	// has the RemediateMachineAnnotation set.
+	HasRemediateMachineAnnotationReason = "HasRemediateMachineAnnotation"
 
 	// NodeStartupTimeoutReason is the reason used when a machine's node does not appear within the specified timeout.
 	NodeStartupTimeoutReason = "NodeStartupTimeout"
@@ -160,19 +177,19 @@ const (
 	// RemediationInProgressReason is the reason used when an unhealthy machine is being remediated by the remediation owner.
 	RemediationInProgressReason = "RemediationInProgress"
 
-	// ExternalRemediationTemplateAvailable is set on machinehealthchecks when MachineHealthCheck controller uses external remediation.
-	// ExternalRemediationTemplateAvailable is set to false if external remediation template is not found.
-	ExternalRemediationTemplateAvailable ConditionType = "ExternalRemediationTemplateAvailable"
+	// ExternalRemediationTemplateAvailableCondition is set on machinehealthchecks when MachineHealthCheck controller uses external remediation.
+	// ExternalRemediationTemplateAvailableCondition is set to false if external remediation template is not found.
+	ExternalRemediationTemplateAvailableCondition ConditionType = "ExternalRemediationTemplateAvailable"
 
-	// ExternalRemediationTemplateNotFound is the reason used when a machine health check fails to find external remediation template.
-	ExternalRemediationTemplateNotFound = "ExternalRemediationTemplateNotFound"
+	// ExternalRemediationTemplateNotFoundReason is the reason used when a machine health check fails to find external remediation template.
+	ExternalRemediationTemplateNotFoundReason = "ExternalRemediationTemplateNotFound"
 
-	// ExternalRemediationRequestAvailable is set on machinehealthchecks when MachineHealthCheck controller uses external remediation.
-	// ExternalRemediationRequestAvailable is set to false if creating external remediation request fails.
-	ExternalRemediationRequestAvailable ConditionType = "ExternalRemediationRequestAvailable"
+	// ExternalRemediationRequestAvailableCondition is set on machinehealthchecks when MachineHealthCheck controller uses external remediation.
+	// ExternalRemediationRequestAvailableCondition is set to false if creating external remediation request fails.
+	ExternalRemediationRequestAvailableCondition ConditionType = "ExternalRemediationRequestAvailable"
 
-	// ExternalRemediationRequestCreationFailed is the reason used when a machine health check fails to create external remediation request.
-	ExternalRemediationRequestCreationFailed = "ExternalRemediationRequestCreationFailed"
+	// ExternalRemediationRequestCreationFailedReason is the reason used when a machine health check fails to create external remediation request.
+	ExternalRemediationRequestCreationFailedReason = "ExternalRemediationRequestCreationFailed"
 )
 
 // Conditions and condition Reasons for the Machine's Node object.
@@ -194,9 +211,14 @@ const (
 
 	// NodeConditionsFailedReason (Severity=Warning) documents a node is not in a healthy state due to the failed state of at least 1 Kubelet condition.
 	NodeConditionsFailedReason = "NodeConditionsFailed"
+
+	// NodeInspectionFailedReason documents a failure in inspecting the node.
+	// This reason is used when the Machine controller is unable to list Nodes to find
+	// the corresponding Node for a Machine by ProviderID.
+	NodeInspectionFailedReason = "NodeInspectionFailed"
 )
 
-// Conditions and condition Reasons for the MachineHealthCheck object
+// Conditions and condition Reasons for the MachineHealthCheck object.
 
 const (
 	// RemediationAllowedCondition is set on MachineHealthChecks to show the status of whether the MachineHealthCheck is
@@ -208,18 +230,26 @@ const (
 	TooManyUnhealthyReason = "TooManyUnhealthy"
 )
 
-// Conditions and condition Reasons for  MachineDeployments
+// Conditions and condition Reasons for  MachineDeployments.
 
 const (
 	// MachineDeploymentAvailableCondition means the MachineDeployment is available, that is, at least the minimum available
 	// machines required (i.e. Spec.Replicas-MaxUnavailable when MachineDeploymentStrategyType = RollingUpdate) are up and running for at least minReadySeconds.
 	MachineDeploymentAvailableCondition ConditionType = "Available"
 
+	// MachineSetReadyCondition reports a summary of current status of the MachineSet owned by the MachineDeployment.
+	MachineSetReadyCondition ConditionType = "MachineSetReady"
+
+	// WaitingForMachineSetFallbackReason (Severity=Info) documents a MachineDeployment waiting for the underlying MachineSet
+	// to be available.
+	// NOTE: This reason is used only as a fallback when the MachineSet object is not reporting its own ready condition.
+	WaitingForMachineSetFallbackReason = "WaitingForMachineSet"
+
 	// WaitingForAvailableMachinesReason (Severity=Warning) reflects the fact that the required minimum number of machines for a machinedeployment are not available.
 	WaitingForAvailableMachinesReason = "WaitingForAvailableMachines"
 )
 
-// Conditions and condition Reasons for  MachineSets
+// Conditions and condition Reasons for  MachineSets.
 
 const (
 	// MachinesCreatedCondition documents that the machines controlled by the MachineSet are created.
@@ -229,6 +259,10 @@ const (
 
 	// MachinesReadyCondition reports an aggregate of current status of the machines controlled by the MachineSet.
 	MachinesReadyCondition ConditionType = "MachinesReady"
+
+	// PreflightCheckFailedReason (Severity=Error) documents a MachineSet failing preflight checks
+	// to create machine(s).
+	PreflightCheckFailedReason = "PreflightCheckFailed"
 
 	// BootstrapTemplateCloningFailedReason (Severity=Error) documents a MachineSet failing to
 	// clone the bootstrap template.
@@ -250,4 +284,70 @@ const (
 
 	// ScalingDownReason (Severity=Info) documents a MachineSet is decreasing the number of replicas.
 	ScalingDownReason = "ScalingDown"
+)
+
+// Conditions and condition reasons for Clusters with a managed Topology.
+const (
+	// TopologyReconciledCondition provides evidence about the reconciliation of a Cluster topology into
+	// the managed objects of the Cluster.
+	// Status false means that for any reason, the values defined in Cluster.spec.topology are not yet applied to
+	// managed objects on the Cluster; status true means that Cluster.spec.topology have been applied to
+	// the objects in the Cluster (but this does not imply those objects are already reconciled to the spec provided).
+	TopologyReconciledCondition ConditionType = "TopologyReconciled"
+
+	// TopologyReconcileFailedReason (Severity=Error) documents the reconciliation of a Cluster topology
+	// failing due to an error.
+	TopologyReconcileFailedReason = "TopologyReconcileFailed"
+
+	// TopologyReconciledControlPlaneUpgradePendingReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because Control Plane is not yet updated to match the desired topology spec.
+	TopologyReconciledControlPlaneUpgradePendingReason = "ControlPlaneUpgradePending"
+
+	// TopologyReconciledMachineDeploymentsCreatePendingReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because at least one of the MachineDeployments is yet to be created.
+	// This generally happens because new MachineDeployment creations are held off while the ControlPlane is not stable.
+	TopologyReconciledMachineDeploymentsCreatePendingReason = "MachineDeploymentsCreatePending"
+
+	// TopologyReconciledMachineDeploymentsUpgradePendingReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because at least one of the MachineDeployments is not yet updated to match the desired topology spec.
+	TopologyReconciledMachineDeploymentsUpgradePendingReason = "MachineDeploymentsUpgradePending"
+
+	// TopologyReconciledMachineDeploymentsUpgradeDeferredReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because the upgrade for at least one of the MachineDeployments has been deferred.
+	TopologyReconciledMachineDeploymentsUpgradeDeferredReason = "MachineDeploymentsUpgradeDeferred"
+
+	// TopologyReconciledMachinePoolsUpgradePendingReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because at least one of the MachinePools is not yet updated to match the desired topology spec.
+	TopologyReconciledMachinePoolsUpgradePendingReason = "MachinePoolsUpgradePending"
+
+	// TopologyReconciledMachinePoolsCreatePendingReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because at least one of the MachinePools is yet to be created.
+	// This generally happens because new MachinePool creations are held off while the ControlPlane is not stable.
+	TopologyReconciledMachinePoolsCreatePendingReason = "MachinePoolsCreatePending"
+
+	// TopologyReconciledMachinePoolsUpgradeDeferredReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because the upgrade for at least one of the MachinePools has been deferred.
+	TopologyReconciledMachinePoolsUpgradeDeferredReason = "MachinePoolsUpgradeDeferred"
+
+	// TopologyReconciledHookBlockingReason (Severity=Info) documents reconciliation of a Cluster topology
+	// not yet completed because at least one of the lifecycle hooks is blocking.
+	TopologyReconciledHookBlockingReason = "LifecycleHookBlocking"
+
+	// TopologyReconciledClusterClassNotReconciledReason (Severity=Info) documents reconciliation of a Cluster topology not
+	// yet completed because the ClusterClass has not reconciled yet. If this condition persists there may be an issue
+	// with the ClusterClass surfaced in the ClusterClass status or controller logs.
+	TopologyReconciledClusterClassNotReconciledReason = "ClusterClassNotReconciled"
+)
+
+// Conditions and condition reasons for ClusterClass.
+const (
+	// ClusterClassRefVersionsUpToDateCondition documents if the references in the ClusterClass are
+	// up-to-date (i.e. they are using the latest apiVersion of the current Cluster API contract from
+	// the corresponding CRD).
+	ClusterClassRefVersionsUpToDateCondition ConditionType = "RefVersionsUpToDate"
+
+	// ClusterClassOutdatedRefVersionsReason (Severity=Warning) that the references in the ClusterClass are not
+	// up-to-date (i.e. they are not using the latest apiVersion of the current Cluster API contract from
+	// the corresponding CRD).
+	ClusterClassOutdatedRefVersionsReason = "OutdatedRefVersions"
 )
