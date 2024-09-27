@@ -42,6 +42,10 @@ func newAgentClusterRequest(agentCluster *capiproviderv1.AgentCluster) ctrl.Requ
 
 func newAgentCluster(name, namespace string, spec capiproviderv1.AgentClusterSpec) *capiproviderv1.AgentCluster {
 	return &capiproviderv1.AgentCluster{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AgentCluster",
+			APIVersion: capiproviderv1.GroupVersion.String(),
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -334,7 +338,17 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeFalse())
 		})
 		It("recovers its cluster deployment when unpaused", func() {
+			// For this test the agent cluster needs to have a valid cluster deployment reference, otherwise
+			// the reconcilation will not orphan it. It also needs a valid control plane endpoint because
+			// that is verified by the reconciler.
 			agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
+			agentCluster.Spec.ControlPlaneEndpoint.Host = "1.2.3.4"
+			agentCluster.Spec.ControlPlaneEndpoint.Port = 1234
+			Expect(c.Update(ctx, agentCluster)).To(Succeed())
+			agentCluster.Status.ClusterDeploymentRef.Namespace = testNamespace
+			agentCluster.Status.ClusterDeploymentRef.Name = clusterName
+			Expect(c.Status().Update(ctx, agentCluster)).To(Succeed())
+
 			createClusterDeployment(c, ctx, agentCluster, clusterName, baseDomain, pullSecret)
 
 			clusterDeployment := &hivev1.ClusterDeployment{}
@@ -362,7 +376,13 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeTrue())
 		})
 		It("doesn't delete the cluster deployment when paused and agent cluster gets deleted", func() {
+			// For this test the agent cluster needs to have a valid cluster deployment reference, otherwise
+			// the reconcilation will not orphan it.
 			agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
+			agentCluster.Status.ClusterDeploymentRef.Namespace = testNamespace
+			agentCluster.Status.ClusterDeploymentRef.Name = clusterName
+			Expect(c.Status().Update(ctx, agentCluster)).To(Succeed())
+
 			createClusterDeployment(c, ctx, agentCluster, clusterName, baseDomain, pullSecret)
 
 			clusterDeployment := &hivev1.ClusterDeployment{}
