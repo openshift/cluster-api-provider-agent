@@ -35,13 +35,21 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
 	agentClusterDependenciesWaitTime = 5 * time.Second
+	AgentClusterRefLabel             = "agentClusterRef"
+)
+
+var (
+	agentClusterFinalizer = "agentcluster" + capiproviderv1.GroupVersion.Group + "/deprovision"
 )
 
 // AgentClusterReconciler reconciles a AgentCluster object
@@ -66,16 +74,13 @@ type ControlPlane struct {
 //+kubebuilder:rbac:groups=extensions.hive.openshift.io,resources=agentclusterinstalls,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=hypershift.openshift.io,resources=hostedcontrolplanes,verbs=get;list;watch;
 
-func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, rerr error) {
 	log := r.Log.WithFields(
 		logrus.Fields{
 			"agent_cluster":           req.Name,
 			"agent_cluster_namespace": req.Namespace,
 		})
 
-	defer func() {
-		log.Info("AgentCluster Reconcile ended")
-	}()
 	log.Info("AgentCluster Reconcile start")
 
 	agentCluster := &capiproviderv1.AgentCluster{}
@@ -84,14 +89,51 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// If the agentCluster has no reference to a ClusterDeployment, create one
-	if agentCluster.Status.ClusterDeploymentRef.Name == "" {
-		return r.createClusterDeployment(ctx, log, agentCluster)
-	}
-	clusterDeployment := &hivev1.ClusterDeployment{}
-	err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Status.ClusterDeploymentRef.Namespace, Name: agentCluster.Status.ClusterDeploymentRef.Name}, clusterDeployment)
+	patchHelper, err := patch.NewHelper(agentCluster, r.Client)
 	if err != nil {
+		return ctrl.Result{}, err
+	}
+	defer func() {
+		if rerr := patchHelper.Patch(ctx, agentCluster); rerr != nil {
+			log.WithError(err).Errorf("failed patching AgentCluster")
+		}
+		log.Info("AgentCluster Reconcile ended")
+	}()
+
+	if !agentCluster.DeletionTimestamp.IsZero() {
+		if err = r.handleDeletion(ctx, agentCluster); err != nil {
+			log.WithError(err).Errorf("failed to remove AgentCluster")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if !controllerutil.ContainsFinalizer(agentCluster, agentClusterFinalizer) {
+		controllerutil.AddFinalizer(agentCluster, agentClusterFinalizer)
+	}
+
+	if paused := agentCluster.Annotations[clusterv1.PausedAnnotation]; paused == "true" {
+		log.Info("Skipping reconcile of AgentCluster as it's paused, but orphan its resources")
+		if err = r.orphanClusterDeployment(ctx, agentCluster); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// If the agentCluster has no reference to a ClusterDeployment, find or create one
+	if agentCluster.Status.ClusterDeploymentRef.Name == "" {
+		return r.findOrCreateClusterDeployment(ctx, log, agentCluster)
+	}
+
+	clusterDeployment := &hivev1.ClusterDeployment{}
+	if err = r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Status.ClusterDeploymentRef.Namespace, Name: agentCluster.Status.ClusterDeploymentRef.Name}, clusterDeployment); err != nil {
 		log.WithError(err).Error("Failed to get ClusterDeployment")
+		return ctrl.Result{}, err
+	}
+
+	err = r.ensureOwnedClusterDeployment(ctx, agentCluster, clusterDeployment)
+	if err != nil {
+		log.WithError(err).Errorf("failed to ensure ClusterDeployment %s is owned by AgentCluster %s", clusterDeployment.Name, agentCluster.Name)
 		return ctrl.Result{}, err
 	}
 
@@ -175,6 +217,38 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 	return &controlPlane, nil
 }
 
+func (r *AgentClusterReconciler) findOrCreateClusterDeployment(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster) (ctrl.Result, error) {
+	clusterDeployment, err := r.findClusterDeployment(ctx, agentCluster)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if clusterDeployment != nil {
+		log.Infof("Found previously created clusterDeployment referencing agentCluster %s. Re-adding agentCluster status to reference clusterDeployment %s", agentCluster.Name, clusterDeployment.Name)
+		agentCluster.Status.ClusterDeploymentRef.Name = clusterDeployment.Name
+		agentCluster.Status.ClusterDeploymentRef.Namespace = clusterDeployment.Namespace
+		return ctrl.Result{}, nil
+	}
+	return r.createClusterDeployment(ctx, log, agentCluster)
+}
+
+func (r *AgentClusterReconciler) findClusterDeployment(ctx context.Context, agentCluster *capiproviderv1.AgentCluster) (*hivev1.ClusterDeployment, error) {
+	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{AgentClusterRefLabel: agentCluster.Name}}
+	selector, err := metav1.LabelSelectorAsSelector(&labelSelector)
+	if err != nil {
+		return nil, client.IgnoreNotFound(err)
+	}
+
+	clusterDeployments := &hivev1.ClusterDeploymentList{}
+	if err := r.Client.List(ctx, clusterDeployments, &client.ListOptions{LabelSelector: selector}); err != nil {
+		return nil, client.IgnoreNotFound(err)
+	}
+
+	if len(clusterDeployments.Items) == 0 {
+		return nil, nil
+	}
+	return &clusterDeployments.Items[0], nil
+}
+
 func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *capiproviderv1.AgentCluster,
 	controlPlane *ControlPlane) *hivev1.ClusterDeployment {
 	var kubeadminPassword *corev1.LocalObjectReference
@@ -193,6 +267,9 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 				Name:       agentCluster.Name,
 				UID:        agentCluster.UID,
 			}},
+			Labels: map[string]string{
+				AgentClusterRefLabel: agentCluster.Name,
+			},
 		},
 		Spec: hivev1.ClusterDeploymentSpec{
 			Installed:   true,
@@ -232,7 +309,6 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 	clusterDeployment := r.createClusterDeploymentObject(agentCluster, controlPlane)
 
 	r.labelControlPlaneSecrets(ctx, controlPlane, agentCluster.Namespace)
-
 	agentCluster.Status.ClusterDeploymentRef.Name = clusterDeployment.Name
 	agentCluster.Status.ClusterDeploymentRef.Namespace = clusterDeployment.Namespace
 	if err = r.Client.Create(ctx, clusterDeployment); err != nil {
@@ -243,11 +319,29 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 			return ctrl.Result{}, err
 		}
 	}
-	if err = r.Client.Status().Update(ctx, agentCluster); err != nil {
-		log.WithError(err).Error("Failed to update status")
-		return ctrl.Result{}, err
-	}
 	return ctrl.Result{}, nil
+}
+
+// ensureOwnedClusterDeployment makes sure that the ClusterDeployment has its owner set to this AgentCluster
+// and that the ClusterDeployment has a label referencing this AgentCluster.
+func (r *AgentClusterReconciler) ensureOwnedClusterDeployment(ctx context.Context, agentCluster *capiproviderv1.AgentCluster, clusterDeployment *hivev1.ClusterDeployment) error {
+	alreadyOwned := clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)
+	agentClusterRef := clusterDeployment.ObjectMeta.Labels[AgentClusterRefLabel]
+	if alreadyOwned && agentClusterRef != "" && agentClusterRef == agentCluster.Name {
+		return nil
+	}
+	patch := client.MergeFrom(clusterDeployment.DeepCopy())
+	if err := controllerutil.SetOwnerReference(agentCluster, clusterDeployment, r.Scheme); err != nil {
+		return err
+	}
+	if clusterDeployment.ObjectMeta.Labels == nil {
+		clusterDeployment.ObjectMeta.Labels = make(map[string]string)
+	}
+	clusterDeployment.ObjectMeta.Labels[AgentClusterRefLabel] = agentCluster.Name
+	if err := r.Client.Patch(ctx, clusterDeployment, patch); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, log logrus.FieldLogger, clusterDeployment *hivev1.ClusterDeployment, agentCluster *capiproviderv1.AgentCluster) error {
@@ -347,4 +441,49 @@ func (r *AgentClusterReconciler) ensureSecretLabel(ctx context.Context, name, na
 	if err := ensureSecretLabel(ctx, r.Client, secret); err != nil {
 		r.Log.WithError(err).Warn("Failed labeling secret")
 	}
+}
+
+func (r *AgentClusterReconciler) handleDeletion(ctx context.Context, agentCluster *capiproviderv1.AgentCluster) error {
+	if paused := agentCluster.Annotations[clusterv1.PausedAnnotation]; paused == "true" {
+		// unset finalizer, remove owner from ClusterDeployment to orphan it and return
+		if err := r.orphanClusterDeployment(ctx, agentCluster); err != nil {
+			return err
+		}
+	}
+	controllerutil.RemoveFinalizer(agentCluster, agentClusterFinalizer)
+	return nil
+}
+
+// orphanClusterDeployment removes this AgentCluster as the owner of this ClusterDeployment. This ensures that there's
+// no cascade deletion of the ClusterDeployment (and its AgentClusterInstall) if the AgentCluster is deleted.
+func (r *AgentClusterReconciler) orphanClusterDeployment(ctx context.Context, agentCluster *capiproviderv1.AgentCluster) error {
+	if agentCluster.Status.ClusterDeploymentRef.Name == "" {
+		return nil
+	}
+	clusterDeployment := &hivev1.ClusterDeployment{}
+	if err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Status.ClusterDeploymentRef.Namespace, Name: agentCluster.Status.ClusterDeploymentRef.Name}, clusterDeployment); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if !clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster) {
+		return nil
+	}
+
+	var newOwners []metav1.OwnerReference
+	for _, owner := range clusterDeployment.GetOwnerReferences() {
+		if owner.Kind == agentCluster.Kind && owner.Name == agentCluster.Name && owner.APIVersion == agentCluster.APIVersion && owner.UID == agentCluster.UID {
+			continue
+		}
+		newOwners = append(newOwners, owner)
+	}
+
+	patch := client.MergeFrom(clusterDeployment.DeepCopy())
+	clusterDeployment.SetOwnerReferences(newOwners)
+	if err := r.Patch(ctx, clusterDeployment, patch); err != nil {
+		return err
+	}
+	return nil
 }

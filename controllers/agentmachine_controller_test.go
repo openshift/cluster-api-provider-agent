@@ -595,6 +595,78 @@ var _ = Describe("agentmachine reconcile", func() {
 			Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
 		})
 	})
+	Context("pausing agentmachine", func() {
+		var (
+			agent        *aiv1beta1.Agent
+			agentMachine *capiproviderv1.AgentMachine
+			machine      *clusterv1.Machine
+		)
+
+		BeforeEach(func() {
+			agent = newAgent("agent-1", testNamespace, aiv1beta1.AgentSpec{Approved: false})
+			agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: "True"})
+			agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: "True"})
+			agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{Name: "cluster-deployment-agentMachine-1", Namespace: testNamespace}
+			agentMachine, machine = newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
+			agentMachine.Status.Ready = true
+			agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: agent.Namespace, Name: agent.Name}
+
+			Expect(c.Create(ctx, agent)).To(BeNil())
+			Expect(c.Create(ctx, agentMachine)).To(BeNil())
+		})
+
+		AfterEach(func() {
+			mockCtrl.Finish()
+		})
+		It("skips reconcile of a paused agent machine", func() {
+			agentMachine.ObjectMeta.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+			Expect(c.Update(ctx, agentMachine)).To(Succeed())
+			machine.Labels = nil
+			Expect(c.Update(ctx, machine)).To(Succeed())
+
+			result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+		})
+
+		It("removes the delete hook and finalizer when the agentmachine is paused and being deleted without unbinding the agent", func() {
+			agentMachine.ObjectMeta.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+			controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
+			Expect(c.Update(ctx, agentMachine)).To(Succeed())
+			Expect(c.Delete(ctx, agentMachine)).To(Succeed())
+
+			result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
+			Expect(machine.GetAnnotations()).ToNot(HaveKey(machineDeleteHookName))
+			Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).NotTo(Succeed())
+			Expect(c.Get(ctx, types.NamespacedName{Name: "agent-1", Namespace: testNamespace}, agent)).To(Succeed())
+			Expect(agent.Spec.ClusterDeploymentName).NotTo(BeNil())
+			Expect(agent.Spec.ClusterDeploymentName.Name).To(BeEquivalentTo("cluster-deployment-agentMachine-1"))
+		})
+
+		It("doesn't unbind the agent if the AgentMachine doesn't have a deletion timestamp", func() {
+			agentMachine.ObjectMeta.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+			controllerutil.AddFinalizer(agentMachine, AgentMachineFinalizerName)
+			Expect(c.Update(ctx, agentMachine)).To(Succeed())
+
+			// mark the machine for deletion
+			Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
+			conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
+			machine.Annotations = map[string]string{machineDeleteHookName: ""}
+			Expect(c.Update(ctx, machine)).To(BeNil())
+
+			result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			Expect(c.Get(ctx, types.NamespacedName{Name: "agent-1", Namespace: testNamespace}, agent)).To(Succeed())
+			Expect(agent.Spec.ClusterDeploymentName).NotTo(BeNil())
+			Expect(agent.Spec.ClusterDeploymentName.Name).To(BeEquivalentTo("cluster-deployment-agentMachine-1"))
+		})
+	})
 })
 
 var _ = Describe("mapMachineToAgentMachine", func() {
