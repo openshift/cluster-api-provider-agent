@@ -37,6 +37,7 @@ type remoteClient struct {
 }
 
 func NewRemoteClient(localClient client.Client, scheme *runtime.Scheme) RemoteClientHandler {
+	scheme = GetKubeClientSchemes(scheme)
 	return &remoteClient{localClient: localClient, scheme: scheme}
 }
 
@@ -69,8 +70,7 @@ func (r *remoteClient) GetRemoteClient(ctx context.Context, secretNamespace stri
 		return nil, errors.Wrapf(err, "failed to get restconfig for remote kube client")
 	}
 
-	schemes := GetKubeClientSchemes(r.scheme)
-	targetClient, err := client.New(restConfig, client.Options{Scheme: schemes})
+	targetClient, err := client.New(restConfig, client.Options{Scheme: r.scheme})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get remote kube client")
 	}
