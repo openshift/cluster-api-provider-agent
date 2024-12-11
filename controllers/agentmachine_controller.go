@@ -132,6 +132,11 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
+	machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, err := r.processBootstrapDataSecret(ctx, log, machine, agentMachine.Status.Ready)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// If the AgentMachine is ready, we have nothing to do
 	if agentMachine.Status.Ready {
 		return ctrl.Result{}, nil
@@ -146,11 +151,6 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		err = fmt.Errorf("no cluster deployment reference on agentCluster %s", agentCluster.GetName())
 		log.Warning(err.Error())
 		return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, err)
-	}
-
-	machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, err := r.processBootstrapDataSecret(ctx, log, machine)
-	if err != nil {
-		return ctrl.Result{}, err
 	}
 
 	// If the AgentMachine doesn't have an agent, find one and set the agentRef
@@ -439,7 +439,7 @@ func (r *AgentMachineReconciler) updateFoundAgent(ctx context.Context, log logru
 }
 
 func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context, log logrus.FieldLogger,
-	machine *clusterv1.Machine) (string, *aiv1beta1.IgnitionEndpointTokenReference, map[string]string, error) {
+	machine *clusterv1.Machine, agentMachineReady bool) (string, *aiv1beta1.IgnitionEndpointTokenReference, map[string]string, error) {
 
 	machineConfigPool := ""
 	var ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference
@@ -505,6 +505,9 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	ignitionTokenSecretRef = &aiv1beta1.IgnitionEndpointTokenReference{Namespace: machine.Namespace, Name: ignitionTokenSecretName}
 	// TODO: Use a dedicated secret per host and Delete the secret upon cleanup,
 	err := r.Client.Create(ctx, ignitionTokenSecret)
+	if err == nil && agentMachineReady {
+		log.Warnf("ignition token secret %s should not be deleted", ignitionTokenSecret)
+	}
 	if apierrors.IsAlreadyExists(err) {
 		log.Infof("ignitionTokenSecret %s already exists, updating secret content",
 			fmt.Sprintf("agent-%s", *machine.Spec.Bootstrap.DataSecretName))
