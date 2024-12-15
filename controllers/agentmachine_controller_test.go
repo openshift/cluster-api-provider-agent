@@ -667,6 +667,109 @@ var _ = Describe("agentmachine reconcile", func() {
 			Expect(agent.Spec.ClusterDeploymentName.Name).To(BeEquivalentTo("cluster-deployment-agentMachine-1"))
 		})
 	})
+	Context("reconciling ignition token secret", func() {
+		var (
+			agent        *aiv1beta1.Agent
+			agentMachine *capiproviderv1.AgentMachine
+			machine      *clusterv1.Machine
+		)
+
+		BeforeEach(func() {
+			agent = newAgent("agent-1", testNamespace, aiv1beta1.AgentSpec{Approved: false})
+			agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.BoundCondition, Status: "True"})
+			agent.Status.Conditions = append(agent.Status.Conditions, v1.Condition{Type: aiv1beta1.ValidatedCondition, Status: "True"})
+			agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{Name: "cluster-deployment-agentMachine-1", Namespace: testNamespace}
+			agentMachine, machine = newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
+
+			Expect(c.Create(ctx, agent)).To(BeNil())
+			Expect(c.Create(ctx, agentMachine)).To(BeNil())
+		})
+		AfterEach(func() {
+			mockCtrl.Finish()
+		})
+		It("creates the ignition token secret upon first reconcile of an AgentMachine", func() {
+			result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			ignitionTokenSecretName := machine.Spec.Bootstrap.DataSecretName
+			ignitionTokenSecret := &corev1.Secret{}
+			Expect(c.Get(ctx, types.NamespacedName{Name: *ignitionTokenSecretName, Namespace: testNamespace}, ignitionTokenSecret)).To(Succeed())
+			ignitionConfig := &ignitionapi.Config{}
+			Expect(json.Unmarshal(ignitionTokenSecret.Data["value"], ignitionConfig)).To(Succeed())
+			expectedPrefix := "Bearer "
+			ignitionToken := (*ignitionConfig.Ignition.Config.Merge[0].HTTPHeaders[0].Value)[len(expectedPrefix):]
+
+			agentSecret := &corev1.Secret{}
+			Expect(c.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("agent-%s", *ignitionTokenSecretName), Namespace: testNamespace}, agentSecret)).To(Succeed())
+			Expect(agentSecret.Data).NotTo(BeEmpty())
+			Expect(agentSecret.Data).To(HaveKey("ignition-token"))
+			Expect(string(agentSecret.Data["ignition-token"])).To(Equal(ignitionToken))
+		})
+		It("updates the ignition token secret if the token changed", func() {
+			result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			ignitionTokenSecretName := machine.Spec.Bootstrap.DataSecretName
+			ignitionTokenSecret := &corev1.Secret{}
+			Expect(c.Get(ctx, types.NamespacedName{Name: *ignitionTokenSecretName, Namespace: testNamespace}, ignitionTokenSecret)).To(Succeed())
+			ignitionConfig := &ignitionapi.Config{}
+			Expect(json.Unmarshal(ignitionTokenSecret.Data["value"], ignitionConfig)).To(Succeed())
+			expectedPrefix := "Bearer "
+			ignitionToken := (*ignitionConfig.Ignition.Config.Merge[0].HTTPHeaders[0].Value)[len(expectedPrefix):]
+
+			agentSecret := &corev1.Secret{}
+			Expect(c.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("agent-%s", *ignitionTokenSecretName), Namespace: testNamespace}, agentSecret)).To(Succeed())
+			Expect(agentSecret.Data).NotTo(BeEmpty())
+			Expect(agentSecret.Data).To(HaveKey("ignition-token"))
+			Expect(string(agentSecret.Data["ignition-token"])).To(Equal(ignitionToken))
+
+			ignitionConfig.Ignition.Config.Merge[0].HTTPHeaders[0].Value = swag.String("Bearer new-token")
+			updatedIgnitionConfig, err := json.Marshal(ignitionConfig)
+			Expect(err).To(BeNil())
+			ignitionTokenSecret.Data["value"] = updatedIgnitionConfig
+			Expect(c.Update(ctx, ignitionTokenSecret)).To(Succeed())
+
+			result, err = amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			Expect(c.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("agent-%s", *ignitionTokenSecretName), Namespace: testNamespace}, agentSecret)).To(Succeed())
+			Expect(agentSecret.Data).NotTo(BeEmpty())
+			Expect(agentSecret.Data).To(HaveKey("ignition-token"))
+			Expect(string(agentSecret.Data["ignition-token"])).To(Equal("new-token"))
+
+		})
+		It("creates the ignition token secret even when the AgentMachine is already ready", func() {
+			agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: agent.Namespace, Name: agent.Name}
+			agentMachine.Status.Ready = true
+			Expect(c.Update(ctx, agentMachine)).To(Succeed())
+
+			ignitionTokenSecretName := machine.Spec.Bootstrap.DataSecretName
+			agentSecret := &corev1.Secret{}
+			err := c.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("agent-%s", *ignitionTokenSecretName), Namespace: testNamespace}, agentSecret)
+			Expect(err).To(HaveOccurred())
+			Expect(apierrors.IsNotFound(err)).To(BeTrue())
+
+			result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+			Expect(err).To(BeNil())
+			Expect(result).To(Equal(ctrl.Result{}))
+
+			ignitionTokenSecret := &corev1.Secret{}
+			Expect(c.Get(ctx, types.NamespacedName{Name: *ignitionTokenSecretName, Namespace: testNamespace}, ignitionTokenSecret)).To(Succeed())
+			ignitionConfig := &ignitionapi.Config{}
+			Expect(json.Unmarshal(ignitionTokenSecret.Data["value"], ignitionConfig)).To(Succeed())
+			expectedPrefix := "Bearer "
+			ignitionToken := (*ignitionConfig.Ignition.Config.Merge[0].HTTPHeaders[0].Value)[len(expectedPrefix):]
+
+			Expect(c.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("agent-%s", *ignitionTokenSecretName), Namespace: testNamespace}, agentSecret)).To(Succeed())
+			Expect(agentSecret.Data).NotTo(BeEmpty())
+			Expect(agentSecret.Data).To(HaveKey("ignition-token"))
+			Expect(string(agentSecret.Data["ignition-token"])).To(Equal(ignitionToken))
+
+		})
+	})
 })
 
 var _ = Describe("mapMachineToAgentMachine", func() {
