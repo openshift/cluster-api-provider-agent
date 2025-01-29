@@ -8,7 +8,13 @@ COPY . .
 # Build
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
 
+# Extract the commit reference from which the image is built
+RUN git rev-parse --short HEAD > /commit-reference.txt
+
 FROM quay-proxy.ci.openshift.org/openshift/ci:ocp_4.16_base-rhel9
+
+# Copy the commit reference from the builder
+COPY --from=builder /commit-reference.txt /commit-reference.txt
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
