@@ -323,6 +323,8 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 	clusterDeploymentRef capiproviderv1.ClusterDeploymentReference, machineConfigPool string,
 	ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference, ignitionEndpointHTTPHeaders map[string]string) (*aiv1beta1.Agent, error) {
 
+	// In the event this is a restored hub cluster, there will already be Agents
+	// that have been attached to this AgentMachine, so we want to reassociate them
 	foundAgent, err := r.findAgentWithAgentMachineLabel(ctx, log, agentMachine)
 	if err != nil {
 		log.WithError(err).Error("failed while finding agents")
@@ -521,20 +523,25 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	return machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, nil
 }
 
+// An Agent is considered valid only if it meets all of the following:
+// 1. it is not bound to a ClusterDeployment
+// 2. it is still connected (contacting the hub)
+// 3. it is approved
+// 4. its validations are passing
 func isValidAgent(agent *aiv1beta1.Agent) bool {
-	if !agent.Spec.Approved {
-		return false
-	}
-	for _, condition := range agent.Status.Conditions {
-		if condition.Type == aiv1beta1.BoundCondition && condition.Status != "False" {
-			return false
-		}
-		if condition.Type == aiv1beta1.ValidatedCondition && condition.Status != "True" {
-			return false
-		}
-	}
+	var valid, notBound, connected bool
 
-	return true
+	for _, condition := range agent.Status.Conditions {
+		switch condition.Type {
+		case aiv1beta1.BoundCondition:
+			notBound = condition.Status == "False"
+		case aiv1beta1.ConnectedCondition:
+			connected = condition.Status == "True"
+		case aiv1beta1.ValidatedCondition:
+			valid = condition.Status == "True"
+		}
+	}
+	return agent.Spec.Approved && valid && connected && notBound
 }
 
 func (r *AgentMachineReconciler) updateStatus(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine, err error) error {
