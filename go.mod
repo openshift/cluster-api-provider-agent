@@ -13,7 +13,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.32.0
-	github.com/openshift/cluster-api-provider-agent/api v0.0.0-20240923230441-a40d69bd76be
+	github.com/openshift/cluster-api-provider-agent/api v0.0.0-20250302080306-e87c2e03fc96
 	github.com/openshift/custom-resource-status v1.1.2
 	github.com/openshift/hive/apis v0.0.0-20220222213051-def9088fdb5a
 	github.com/pkg/errors v0.9.1
