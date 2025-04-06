@@ -1,6 +1,8 @@
 module github.com/openshift/cluster-api-provider-agent/api
 
-go 1.21
+go 1.22
+
+toolchain go1.22.9
 
 require (
 	github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094
@@ -28,7 +30,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
+	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
