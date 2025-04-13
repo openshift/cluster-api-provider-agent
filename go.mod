@@ -115,7 +115,7 @@ require (
 
 replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20250402200652-1dc66326d304
-	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20240506174859-4577ef6f4cf1
+	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20250410153519-abd01432ec2c
 	github.com/openshift/cluster-api-provider-agent/api => ./api
 
 	// CVE-2025-22868
