@@ -79,7 +79,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
-	github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094 // indirect
+	github.com/openshift/api f636181788a9 // indirect
 	github.com/openshift/assisted-service v1.0.10-0.20250410153519-abd01432ec2c // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
