@@ -596,7 +596,8 @@ spec:
       optional: true
     - name: netrc
       optional: true
-  taskRunTemplate: {}
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-cluster-api-provider-agent-mce-29
   workspaces:
   - name: git-auth
     secret:
