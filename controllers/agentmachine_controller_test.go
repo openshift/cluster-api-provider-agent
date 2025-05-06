@@ -585,6 +585,8 @@ var _ = Describe("agentmachine reconcile", func() {
 			Expect(machine.GetAnnotations()).ToNot(HaveKey(machineDeleteHookName))
 			Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
 			Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
+			Expect(c.Get(ctx, types.NamespacedName{Namespace: agent.Namespace, Name: agent.Name}, agent)).To(Succeed())
+			Expect(agent.Labels).NotTo(HaveKey(AgentMachineRefLabelKey))
 		})
 
 		It("removes the delete hook and finalizer when the agent reaches unbinding pending user action", func() {
@@ -599,6 +601,8 @@ var _ = Describe("agentmachine reconcile", func() {
 			Expect(machine.GetAnnotations()).ToNot(HaveKey(machineDeleteHookName))
 			Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
 			Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeFalse())
+			Expect(c.Get(ctx, types.NamespacedName{Namespace: agent.Namespace, Name: agent.Name}, agent)).To(Succeed())
+			Expect(agent.Labels).NotTo(HaveKey(AgentMachineRefLabelKey))
 		})
 	})
 	Context("pausing agentmachine", func() {

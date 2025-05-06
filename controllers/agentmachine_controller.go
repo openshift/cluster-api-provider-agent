@@ -218,7 +218,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 			log.Error(err)
 			return &ctrl.Result{}, err
 		}
-		return nil, nil
+		return &ctrl.Result{}, nil
 	}
 
 	// return if the machine is not waiting on this hook
@@ -236,7 +236,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 			log.Error(err)
 			return &ctrl.Result{}, err
 		}
-		return nil, nil
+		return &ctrl.Result{}, nil
 	}
 
 	log.Infof("Machine is waiting on delete hook %s", clusterv1.PreTerminateDeleteHookSucceededCondition)
@@ -246,7 +246,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 			log.Error(err)
 			return &ctrl.Result{}, err
 		}
-		return nil, nil
+		return &ctrl.Result{}, nil
 	}
 
 	agent, err := r.getAgent(ctx, log, agentMachine)
@@ -257,7 +257,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 				log.Error(hookErr)
 				return &ctrl.Result{}, hookErr
 			}
-			return nil, nil
+			return &ctrl.Result{}, nil
 		} else {
 			log.WithError(err).Errorf("Failed to get agent %s", agentMachine.Status.AgentRef.Name)
 			return &ctrl.Result{}, err
@@ -294,12 +294,11 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 			log.Error(err)
 			return &ctrl.Result{}, err
 		}
+		return &ctrl.Result{}, nil
 	} else {
 		log.Infof("Waiting for agent %s to reboot into discovery", agent.Name)
 		return &ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
-
-	return nil, nil
 }
 
 func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus.FieldLogger, machine *clusterv1.Machine) (*capiproviderv1.AgentCluster, error) {
