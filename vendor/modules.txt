@@ -219,7 +219,7 @@ github.com/onsi/gomega/types
 # github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094
 ## explicit; go 1.21
 github.com/openshift/api/config/v1
-# github.com/openshift/assisted-service v1.0.10-0.20250410153519-abd01432ec2c
+# github.com/openshift/assisted-service v1.0.10-0.20250615103046-a721fe0600d7
 ## explicit; go 1.21
 github.com/openshift/assisted-service/pkg/validations
 # github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20250402200652-1dc66326d304
