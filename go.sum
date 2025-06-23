@@ -320,8 +320,8 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094 h1:J1wuGhVxpsHykZBa6Beb1gQ96Ptej9AE/BvwCBiRj1E=
 github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094/go.mod h1:CxgbWAlvu2iQB0UmKTtRu1YfepRg1/vJ64n2DlIEVz4=
-github.com/openshift/assisted-service v1.0.10-0.20250615103046-a721fe0600d7 h1:2wtihiRo9Y8WVgqieQY6DuJ+JASmaf+75rCwvQDtGW4=
-github.com/openshift/assisted-service v1.0.10-0.20250615103046-a721fe0600d7/go.mod h1:b6IU9XxjN1it5wIZOC+edE+5RkrBM3U4Di4ZIkJElZc=
+github.com/openshift/assisted-service v1.0.10-0.20250622134152-3d68cd832bc7 h1:u918oR8xFewq9kCTi0VL92luzwvTwNnJ9JUgwHlAm9o=
+github.com/openshift/assisted-service v1.0.10-0.20250622134152-3d68cd832bc7/go.mod h1:b6IU9XxjN1it5wIZOC+edE+5RkrBM3U4Di4ZIkJElZc=
 github.com/openshift/assisted-service/api v0.0.0-20250615103046-a721fe0600d7 h1:xFL08SlbnravZ3M8Ynwf59hVEYreB2FMXVxr0iv/3Pc=
 github.com/openshift/assisted-service/api v0.0.0-20250615103046-a721fe0600d7/go.mod h1:tvE25aC7I07Uz2jUt7gH2E8+a1Rw4W7qtW6/EFb8l64=
 github.com/openshift/assisted-service/models v0.0.0-20250615103046-a721fe0600d7 h1:3q52CQ8jCYyHSwNzD3YUvjhGuU+b4dm5+6QCaaSGe1A=
