@@ -223,7 +223,8 @@ var _ = Describe("agentcluster reconcile", func() {
 		Expect(clusterDeployment.OwnerReferences[0].Name).To(Equal(agentCluster.Name))
 		Expect(clusterDeployment.OwnerReferences[0].Kind).To(Equal(agentCluster.Kind))
 		Expect(clusterDeployment.OwnerReferences[0].APIVersion).To(Equal(agentCluster.APIVersion))
-
+		Expect(clusterDeployment.GetAnnotations()).NotTo(BeEmpty())
+		Expect(clusterDeployment.GetAnnotations()).To(HaveKey(HiveReconcilePauseAnnotation))
 	})
 	It("failed to find cluster", func() {
 		agentCluster := newAgentCluster("agentCluster-1", testNamespace, capiproviderv1.AgentClusterSpec{
@@ -407,6 +408,34 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeFalse())
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, agentCluster)).NotTo(Succeed())
 		})
+	})
+	It("should add the hive pause annotation to the clusterDeployment if missing", func() {
+		agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
+		createAgentClusterInstall(c, ctx, agentCluster.Namespace, agentCluster.Name)
+		createClusterDeployment(c, ctx, agentCluster, clusterName, baseDomain, pullSecret)
+		key := types.NamespacedName{
+			Namespace: testNamespace,
+			Name:      clusterName,
+		}
+		clusterDeployment := &hivev1.ClusterDeployment{}
+		Expect(c.Get(ctx, key, clusterDeployment)).To(Succeed())
+		clusterDeployment.Labels = map[string]string{AgentClusterRefLabel: agentCluster.Name}
+		Expect(c.Update(ctx, clusterDeployment)).To(BeNil())
+		agentCluster.Spec.ControlPlaneEndpoint.Host = "1.2.3.4"
+		agentCluster.Spec.ControlPlaneEndpoint.Port = 1234
+		Expect(c.Update(ctx, agentCluster)).To(BeNil())
+		agentCluster.Status.ClusterDeploymentRef.Name = agentCluster.Name
+		agentCluster.Status.ClusterDeploymentRef.Namespace = agentCluster.Namespace
+		Expect(c.Status().Update(ctx, agentCluster)).To(BeNil())
+
+		result, err := acr.Reconcile(ctx, newAgentClusterRequest(agentCluster))
+		Expect(err).To(BeNil())
+		Expect(result).To(Equal(ctrl.Result{}))
+
+		err = c.Get(ctx, key, clusterDeployment)
+		Expect(err).To(BeNil())
+		Expect(clusterDeployment.GetAnnotations()).NotTo(BeEmpty())
+		Expect(clusterDeployment.GetAnnotations()).To(HaveKey(HiveReconcilePauseAnnotation))
 	})
 })
 

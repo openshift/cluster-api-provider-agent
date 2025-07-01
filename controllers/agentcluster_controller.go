@@ -46,6 +46,7 @@ import (
 const (
 	agentClusterDependenciesWaitTime = 5 * time.Second
 	AgentClusterRefLabel             = "agentClusterRef"
+	HiveReconcilePauseAnnotation     = "hive.openshift.io/reconcile-pause"
 )
 
 var (
@@ -134,6 +135,12 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	err = r.ensureOwnedClusterDeployment(ctx, agentCluster, clusterDeployment)
 	if err != nil {
 		log.WithError(err).Errorf("failed to ensure ClusterDeployment %s is owned by AgentCluster %s", clusterDeployment.Name, agentCluster.Name)
+		return ctrl.Result{}, err
+	}
+
+	err = r.ensureClusterDeploymentAnnotations(ctx, clusterDeployment)
+	if err != nil {
+		log.WithError(err).Errorf("failed to ensure ClusterDeployment %s has Hive pause annotation", clusterDeployment.Name)
 		return ctrl.Result{}, err
 	}
 
@@ -270,6 +277,9 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 			Labels: map[string]string{
 				AgentClusterRefLabel: agentCluster.Name,
 			},
+			Annotations: map[string]string{
+				HiveReconcilePauseAnnotation: "true",
+			},
 		},
 		Spec: hivev1.ClusterDeploymentSpec{
 			Installed:   true,
@@ -338,6 +348,20 @@ func (r *AgentClusterReconciler) ensureOwnedClusterDeployment(ctx context.Contex
 		clusterDeployment.ObjectMeta.Labels = make(map[string]string)
 	}
 	clusterDeployment.ObjectMeta.Labels[AgentClusterRefLabel] = agentCluster.Name
+	if err := r.Client.Patch(ctx, clusterDeployment, patch); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ensureClusterDeploymentAnnotations makes sure that the ClusterDeployment has the hive pause annotation
+// to prevent Hive from reconciling it.
+func (r *AgentClusterReconciler) ensureClusterDeploymentAnnotations(ctx context.Context, clusterDeployment *hivev1.ClusterDeployment) error {
+	patch := client.MergeFrom(clusterDeployment.DeepCopy())
+	if clusterDeployment.ObjectMeta.Annotations == nil {
+		clusterDeployment.ObjectMeta.Annotations = make(map[string]string)
+	}
+	clusterDeployment.ObjectMeta.Annotations[HiveReconcilePauseAnnotation] = "true"
 	if err := r.Client.Patch(ctx, clusterDeployment, patch); err != nil {
 		return err
 	}
