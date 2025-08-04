@@ -114,7 +114,7 @@ require (
 )
 
 replace (
-	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20250623201707-ab77c8906708
+	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20250801061415-c71c7281d5f4
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20250622192601-b137c70a1e39
 	github.com/openshift/cluster-api-provider-agent/api => ./api
 
