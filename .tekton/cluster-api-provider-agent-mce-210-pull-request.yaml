@@ -48,7 +48,7 @@ spec:
         value: main
       - name: pathInRepo
         value: pipelines/common_mce_2.10.yaml
-    taskRunTemplate:
+  taskRunTemplate:
     serviceAccountName: build-pipeline-cluster-api-provider-agent-mce-210
   workspaces:
   - name: git-auth
