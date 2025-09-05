@@ -35,7 +35,7 @@ spec:
     value: .
   - name: hermetic
     value: "true"
-  - name: build-source
+  - name: build-source-image
     value: "true"
   pipelineRef:
     resolver: git
