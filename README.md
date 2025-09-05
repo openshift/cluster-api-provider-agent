@@ -70,4 +70,3 @@ Until now this CAPI provider has been tested for resizing [HyperShift](https://g
  * The re-provisioning flow currently requires manually rebooting the host with the Discovery ISO.
  * The CAPI provider does not yet have cluster lifecycle features - it adds and removes nodes from an existing cluster.
  * The CAPI provider currently selects the first free Agent that is approved and whose validations are passing. It will be smarter in the future.
-
