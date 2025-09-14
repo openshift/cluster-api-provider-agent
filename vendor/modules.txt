@@ -230,7 +230,7 @@ github.com/openshift/assisted-service/api/v1beta1
 # github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20250410153519-abd01432ec2c
 ## explicit; go 1.21
 github.com/openshift/assisted-service/models
-# github.com/openshift/cluster-api-provider-agent/api v0.0.0-20250324094320-633957e81ebd => ./api
+# github.com/openshift/cluster-api-provider-agent/api v0.0.0-20250908164308-2bc44cc6d363 => ./api
 ## explicit; go 1.21
 github.com/openshift/cluster-api-provider-agent/api/v1alpha1
 github.com/openshift/cluster-api-provider-agent/api/v1beta1
