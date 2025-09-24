@@ -1,12 +1,12 @@
 # Build the manager binary
-FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.21 as builder
+FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.21@sha256:2b45f967c73c98155118386a33d9d19e5f8bbbdf46cdd9dffb01c3ff98cc4dbe as builder
 
 WORKDIR /workspace
 COPY . .
 # Build
 RUN CGO_ENABLED=1 go build -a -o manager main.go
 
-FROM registry.redhat.io/rhel9-2-els/rhel:9.2
+FROM registry.redhat.io/rhel9-2-els/rhel:9.2@sha256:84cf67d515ff870bf1fe7e08e5ca0a82d11819c176cf07f2fee02a0e657e0c0c
 LABEL \
     name="cluster-api-provider-agent" \
     com.redhat.component="cluster-api-provider-agent" \
