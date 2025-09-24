@@ -1,34 +1,43 @@
 {
-    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "timezone": "America/New_York",
-    "commitMessagePrefix": "NO-ISSUE: ",
-    "prHourlyLimit": 0,
-    "prConcurrentLimit": 0,
-    "vulnerabilityAlerts": {
-      "enabled": true
-    },
-    "dockerfile": {
-      "fileMatch": ["Dockerfile.rhtap"],
-      "ignorePaths": ["**/Dockerfile"],
-      "pinDigests": true
-    },
-    "enabledManagers": [
-        "tekton",
-        "gomod",
-        "dockerfile"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "timezone": "America/New_York",
+  "commitMessagePrefix": "NO-ISSUE: ",
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "vulnerabilityAlerts": {
+    "enabled": true
+  },
+  "dockerfile": {
+    "managerFilePatterns": [
+      "/Dockerfile.rhtap/"
     ],
-    "gomod": {
-      "packageRules": [
-        {
-          "matchDepTypes": ["indirect"],
-          "enabled": false
-        }
-      ]
-    },
-    "tekton": {
-      "fileMatch": ["^.tekton/*"]
-    },
-    "postUpdateOptions": [
-      "gomodTidy", "gomodVendor"
+    "ignorePaths": [
+      "**/Dockerfile"
+    ],
+    "pinDigests": true
+  },
+  "enabledManagers": [
+    "tekton",
+    "gomod",
+    "dockerfile"
+  ],
+  "gomod": {
+    "packageRules": [
+      {
+        "matchDepTypes": [
+          "indirect"
+        ],
+        "enabled": false
+      }
     ]
+  },
+  "tekton": {
+    "managerFilePatterns": [
+      "/^.tekton/*/"
+    ]
+  },
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodVendor"
+  ]
 }
