@@ -3,7 +3,7 @@
     "timezone": "America/New_York",
     "commitMessagePrefix": "NO-ISSUE: ",
     "prHourlyLimit": 0,
-    "prConcurrentLimit": 0,
+    "prConcurrentLimit": 20,
     "vulnerabilityAlerts": {
       "enabled": true
     },
@@ -13,21 +13,20 @@
       "pinDigests": true
     },
     "enabledManagers": [
-        "tekton",
         "gomod",
         "dockerfile"
     ],
-    "gomod": {
-      "packageRules": [
-        {
-          "matchDepTypes": ["indirect"],
-          "enabled": false
-        }
-      ]
-    },
-    "tekton": {
-      "fileMatch": ["^.tekton/*"]
-    },
+    "packageRules": [
+      {
+        "matchManagers": "gomod",
+        "matchDepTypes": ["indirect"],
+        "enabled": false
+      },
+      {
+        "matchManagers": "gomod",
+        "matchBaseBranches": "master"
+      }
+    ],
     "postUpdateOptions": [
       "gomodTidy", "gomodVendor"
     ]
