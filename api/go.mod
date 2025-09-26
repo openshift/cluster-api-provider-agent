@@ -3,7 +3,7 @@ module github.com/openshift/cluster-api-provider-agent/api
 go 1.21
 
 require (
-	github.com/openshift/api v0.0.0-20230915112357-693d4b64813c
+	github.com/openshift/api 1517fca97fe3
 	k8s.io/apimachinery v0.28.2
 	k8s.io/client-go v0.23.0
 	sigs.k8s.io/cluster-api v1.0.0
