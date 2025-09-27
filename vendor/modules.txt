@@ -226,7 +226,7 @@ github.com/openshift/assisted-service/api/v1beta1
 ## explicit; go 1.20
 github.com/openshift/assisted-service/models
 # github.com/openshift/cluster-api-provider-agent/api v0.0.0-20230918065757-81658c4ddf2f => ./api
-## explicit; go 1.21
+## explicit; go 1.24.0
 github.com/openshift/cluster-api-provider-agent/api/v1alpha1
 github.com/openshift/cluster-api-provider-agent/api/v1beta1
 # github.com/openshift/custom-resource-status v1.1.2
@@ -313,7 +313,7 @@ golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
-# golang.org/x/oauth2 v0.28.0 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
+# golang.org/x/oauth2 v0.31.0 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
 ## explicit; go 1.18
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
