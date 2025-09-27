@@ -1,6 +1,8 @@
 module github.com/openshift/cluster-api-provider-agent
 
-go 1.21
+go 1.23.0
+
+toolchain go1.24.6
 
 // Versions to be held for v1beta1
 // sigs.k8s.io/controller-runtime on v0.11.x
@@ -60,7 +62,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
@@ -82,7 +84,7 @@ require (
 	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
-	github.com/prometheus/procfs v0.12.0 // indirect
+	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/spf13/pflag v1.0.6-0.20210604193023-d5e0c0615ace // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	go.mongodb.org/mongo-driver v1.10.0 // indirect
@@ -91,7 +93,7 @@ require (
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.28.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
@@ -115,7 +117,7 @@ replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20240506174859-4577ef6f4cf1
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20240506174859-4577ef6f4cf1
 	github.com/openshift/cluster-api-provider-agent/api => ./api
-	
+
 	// CVE-2025-22868
 	// This is from tag v0.26.openshift.1
 	golang.org/x/oauth2 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
