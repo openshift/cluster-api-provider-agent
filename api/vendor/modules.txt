@@ -5,7 +5,6 @@ github.com/emicklei/go-restful/v3/log
 # github.com/go-logr/logr v1.4.1
 ## explicit; go 1.18
 github.com/go-logr/logr
-github.com/go-logr/logr/slogr
 # github.com/go-openapi/jsonpointer v0.19.6
 ## explicit; go 1.13
 github.com/go-openapi/jsonpointer
@@ -210,8 +209,8 @@ k8s.io/apimachinery/third_party/forked/golang/reflect
 # k8s.io/client-go v0.29.9
 ## explicit; go 1.21
 k8s.io/client-go/kubernetes/scheme
-# k8s.io/klog/v2 v2.110.1
-## explicit; go 1.13
+# k8s.io/klog/v2 v2.130.1
+## explicit; go 1.18
 k8s.io/klog/v2
 k8s.io/klog/v2/internal/buffer
 k8s.io/klog/v2/internal/clock
