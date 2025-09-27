@@ -76,7 +76,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
-	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094 // indirect
 	github.com/openshift/assisted-service v1.0.10-0.20240506174859-4577ef6f4cf1 // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
