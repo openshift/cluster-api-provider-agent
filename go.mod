@@ -1,6 +1,8 @@
 module github.com/openshift/cluster-api-provider-agent
 
-go 1.21
+go 1.23
+
+toolchain go1.24.6
 
 // Versions to be held for v1beta1
 // sigs.k8s.io/controller-runtime on v0.11.x
@@ -38,7 +40,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
-	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/coreos/go-systemd/v22 v22.6.0 // indirect
 	github.com/coreos/vcontext v0.0.0-20211021162308-f1dbbca7bef4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
@@ -115,7 +117,7 @@ replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20240506174859-4577ef6f4cf1
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20240506174859-4577ef6f4cf1
 	github.com/openshift/cluster-api-provider-agent/api => ./api
-	
+
 	// CVE-2025-22868
 	// This is from tag v0.26.openshift.1
 	golang.org/x/oauth2 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
