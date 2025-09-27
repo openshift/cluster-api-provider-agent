@@ -79,7 +79,7 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/openshift/api v0.0.0-20231031181504-3be12e93388f // indirect
-	github.com/openshift/assisted-service v1.0.10-0.20240506174859-4577ef6f4cf1 // indirect
+	github.com/openshift/assisted-service 9baf03ae7788 // indirect
 	github.com/prometheus/client_golang v1.17.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
