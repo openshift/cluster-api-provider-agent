@@ -226,7 +226,7 @@ github.com/openshift/assisted-service/api/v1beta1
 ## explicit; go 1.20
 github.com/openshift/assisted-service/models
 # github.com/openshift/cluster-api-provider-agent/api v0.0.0-20230918065757-81658c4ddf2f => ./api
-## explicit; go 1.21
+## explicit; go 1.22
 github.com/openshift/cluster-api-provider-agent/api/v1alpha1
 github.com/openshift/cluster-api-provider-agent/api/v1beta1
 # github.com/openshift/custom-resource-status v1.1.2
@@ -301,6 +301,9 @@ go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/internal/pool
 go.uber.org/zap/zapcore
+# go.yaml.in/yaml/v2 v2.4.2
+## explicit; go 1.15
+go.yaml.in/yaml/v2
 # golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 ## explicit; go 1.20
 golang.org/x/exp/maps
@@ -787,10 +790,9 @@ sigs.k8s.io/structured-merge-diff/v4/merge
 sigs.k8s.io/structured-merge-diff/v4/schema
 sigs.k8s.io/structured-merge-diff/v4/typed
 sigs.k8s.io/structured-merge-diff/v4/value
-# sigs.k8s.io/yaml v1.4.0
-## explicit; go 1.12
+# sigs.k8s.io/yaml v1.6.0
+## explicit; go 1.22
 sigs.k8s.io/yaml
-sigs.k8s.io/yaml/goyaml.v2
 # github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20240506174859-4577ef6f4cf1
 # github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20240506174859-4577ef6f4cf1
 # github.com/openshift/cluster-api-provider-agent/api => ./api
