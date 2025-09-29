@@ -18,13 +18,19 @@
     ],
     "packageRules": [
       {
-        "matchManagers": "gomod",
+        "matchManagers": ["gomod"],
         "matchDepTypes": ["indirect"],
         "enabled": false
       },
       {
-        "matchManagers": "gomod",
-        "matchBaseBranches": "master"
+        "matchManagers": ["gomod"],
+        "matchBaseBranches": ["master"],
+        "enabled": true
+      },
+      {
+        "matchManagers": ["gomod"],
+        "matchBaseBranches": ["release-ocm-.*"],
+        "enabled": false
       }
     ],
     "postUpdateOptions": [
