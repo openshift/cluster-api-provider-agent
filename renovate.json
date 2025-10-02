@@ -16,6 +16,25 @@
         "gomod",
         "dockerfile"
     ],
+    "gomod": {
+      "packageRules": [
+        {
+          "matchDepTypes": [
+            "indirect"
+          ],
+          "enabled": false
+        },
+        {
+          "matchBaseBranches": [
+            "/release-ocm-/.*/"
+          ],
+          "matchManagers": [
+            "gomod"
+          ],
+          "enabled": false
+        }
+      ]
+    },
     "packageRules": [
       {
         "matchManagers": ["gomod"],
@@ -29,7 +48,7 @@
       },
       {
         "matchManagers": ["gomod"],
-        "matchBaseBranches": ["release-ocm-.*"],
+        "matchBaseBranches": ["/release-ocm-/.*/"],
         "enabled": false
       }
     ],
