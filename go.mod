@@ -22,7 +22,7 @@ require (
 	k8s.io/api v0.29.9
 	k8s.io/apimachinery v0.29.9
 	k8s.io/client-go v0.29.9
-	k8s.io/utils v0.0.0-20231127182322-b307cd553661
+	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 	sigs.k8s.io/cluster-api v1.7.6
 	sigs.k8s.io/controller-runtime v0.17.6
 )
@@ -115,7 +115,7 @@ replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20240506174859-4577ef6f4cf1
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20240506174859-4577ef6f4cf1
 	github.com/openshift/cluster-api-provider-agent/api => ./api
-	
+
 	// CVE-2025-22868
 	// This is from tag v0.26.openshift.1
 	golang.org/x/oauth2 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
