@@ -366,12 +366,10 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/openshift/api v0.0.0-20231031181504-3be12e93388f h1:j7QYl057TBD/lxWAGCr4IrbdG7IMg2U60DFK+BKt3VI=
 github.com/openshift/api v0.0.0-20231031181504-3be12e93388f/go.mod h1:yimSGmjsI+XF1mr+AKBs2//fSXIOhhetHGbMlBEfXbs=
-github.com/openshift/assisted-service v1.0.10-0.20240506174859-4577ef6f4cf1 h1:aIzWCog7xMizJF6zpvI48jbJ6/oxewayQYrhOeucbgc=
-github.com/openshift/assisted-service v1.0.10-0.20240506174859-4577ef6f4cf1/go.mod h1:6HPEu9ojkGtKZQtkR9Uk8GTGm9OxryQjrUYYpln1FSY=
 github.com/openshift/assisted-service/api v0.0.0-20240506174859-4577ef6f4cf1 h1:dhuAkkV6V53w2TwX8bqPW0aEmYVM0roiAKTiv1mUk88=
 github.com/openshift/assisted-service/api v0.0.0-20240506174859-4577ef6f4cf1/go.mod h1:PbxcQ9Cwxvp/l7hVEIkG5flQnfWSn4QEw6DmaTIqpM8=
-github.com/openshift/assisted-service/models v0.0.0-20240506174859-4577ef6f4cf1 h1:cfoG6S4uAwcWqgR8CCfK1H1u8j7iqRqgfZkryBwXp54=
-github.com/openshift/assisted-service/models v0.0.0-20240506174859-4577ef6f4cf1/go.mod h1:xd9WEj3m/k1cwZRyBTDa61BfDsHucQuArDsFgEFvv2s=
+github.com/openshift/assisted-service/models v0.0.0-20251005073047-cf810a77dd56 h1:apIouTTrjh9kWXif1GvR9gXjkErOPRqzo6eJbcwjp2s=
+github.com/openshift/assisted-service/models v0.0.0-20251005073047-cf810a77dd56/go.mod h1:5EkIueBSaLnt64HR8drgSewdm+GeuE7W5mr9pa2JXXk=
 github.com/openshift/custom-resource-status v1.1.2 h1:C3DL44LEbvlbItfd8mT5jWrqPfHnSOQoQf/sypqA6A4=
 github.com/openshift/custom-resource-status v1.1.2/go.mod h1:DB/Mf2oTeiAmVVX1gN+NEqweonAPY0TKUwADizj8+ZA=
 github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d h1:iQfTKBmMcwFTxxVWV7U/C6GqgIIWTKD8l5HXslvn53s=
@@ -741,7 +739,6 @@ google.golang.org/genproto v0.0.0-20200603110839-e855014d5736/go.mod h1:jDfRM7Fc
 google.golang.org/genproto v0.0.0-20200608115520-7c474a2e3482/go.mod h1:jDfRM7FcilCzHH/e9qn6dsT145K34l5v+OpcnNgKAAA=
 google.golang.org/genproto v0.0.0-20200610104632-a5b850bcf112/go.mod h1:jDfRM7FcilCzHH/e9qn6dsT145K34l5v+OpcnNgKAAA=
 google.golang.org/genproto v0.0.0-20201019141844-1ed22bb0c154/go.mod h1:FWY/as6DDZQgahTzZj3fqbO1CbirC29ZNUFHwi0/+no=
-google.golang.org/genproto v0.0.0-20230711160842-782d3b101e98 h1:Z0hjGZePRE0ZBWotvtrwxFNrNE9CUAGtplaDK5NNI/g=
 google.golang.org/genproto/googleapis/api v0.0.0-20230711160842-782d3b101e98 h1:FmF5cCW94Ij59cfpoLiwTgodWmm60eEV0CjlsVg2fuw=
 google.golang.org/genproto/googleapis/api v0.0.0-20230711160842-782d3b101e98/go.mod h1:rsr7RhLuwsDKL7RmgDDCUc6yaGr1iqceVb5Wv6f6YvQ=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 h1:bVf09lpb+OJbByTj913DRJioFFAjf/ZGxEz7MajTp2U=
