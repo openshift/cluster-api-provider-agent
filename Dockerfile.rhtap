@@ -1,12 +1,12 @@
 # Build the manager binary
-FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.23 as builder
+FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.23@sha256:96cfceb50f5323efa1aa8569d4420cdbf1bb391225d5171ef72a0d0ecf028467 as builder
 
 WORKDIR /workspace
 COPY . .
 # Build
 RUN CGO_ENABLED=1 go build -a -o manager main.go
 
-FROM registry.redhat.io/rhel9-2-els/rhel:9.2
+FROM registry.redhat.io/rhel9-2-els/rhel:9.2@sha256:13bd43a1344d42ebb4ef3ce04d0edaa213fe9d67221ec3772eecf6de051a3fe9
 LABEL \
     name="multicluster-engine/cluster-api-provider-agent-rhel9" \
     cpe="cpe:/a:redhat:multicluster_engine:2.9::el9" \
