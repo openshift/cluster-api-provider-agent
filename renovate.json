@@ -26,7 +26,10 @@
         },
         {
           "matchBaseBranches": [
-            "/release-ocm-/.*/"
+            "release-ocm-2.12",
+            "release-ocm-2.13",
+            "release-ocm-2.14",
+            "release-ocm-2.15"
           ],
           "matchManagers": [
             "gomod"
@@ -48,7 +51,12 @@
       },
       {
         "matchManagers": ["gomod"],
-        "matchBaseBranches": ["/release-ocm-/.*/"],
+        "matchBaseBranches": [
+            "release-ocm-2.12",
+            "release-ocm-2.13",
+            "release-ocm-2.14",
+            "release-ocm-2.15"
+        ],
         "enabled": false
       }
     ],
