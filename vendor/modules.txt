@@ -324,8 +324,8 @@ golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
-# golang.org/x/oauth2 v0.28.0 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
-## explicit; go 1.18
+# golang.org/x/oauth2 v0.28.0 => github.com/openshift/golang-oauth2 v0.28.0
+## explicit; go 1.23.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sys v0.29.0
@@ -799,4 +799,4 @@ sigs.k8s.io/yaml/goyaml.v2
 # github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20250828154955-d72721521558
 # github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20250821113912-5ad96ae324a1
 # github.com/openshift/cluster-api-provider-agent/api => ./api
-# golang.org/x/oauth2 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
+# golang.org/x/oauth2 => github.com/openshift/golang-oauth2 v0.28.0
