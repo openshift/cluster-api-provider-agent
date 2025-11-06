@@ -6,7 +6,7 @@ require (
 	github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094
 	k8s.io/apimachinery v0.29.9
 	k8s.io/client-go v0.29.9
-	sigs.k8s.io/cluster-api v1.7.6
+	sigs.k8s.io/cluster-api v1.11.3
 	sigs.k8s.io/controller-runtime v0.17.6
 )
 
