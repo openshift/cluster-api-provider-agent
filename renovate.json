@@ -30,7 +30,8 @@
             "release-ocm-2.12",
             "release-ocm-2.13",
             "release-ocm-2.14",
-            "release-ocm-2.15"
+            "release-ocm-2.15",
+            "release-ocm-2.16"
           ],
           "matchManagers": [
             "gomod"
@@ -57,7 +58,8 @@
             "release-ocm-2.12",
             "release-ocm-2.13",
             "release-ocm-2.14",
-            "release-ocm-2.15"
+            "release-ocm-2.15",
+            "release-ocm-2.16"
         ],
         "enabled": false
       }
