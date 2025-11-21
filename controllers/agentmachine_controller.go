@@ -53,9 +53,12 @@ import (
 )
 
 const (
+	// AgentMachineFinalizerName is the finalizer name for the AgentMachine
 	AgentMachineFinalizerName = "agentmachine." + aiv1beta1.Group + "/deprovision"
-	AgentMachineRefLabelKey   = "agentMachineRef"
-	AgentMachineRefNamespace  = "agentMachineRefNamespace"
+	// AgentMachineRefLabelKey is the label key so an Agent can have a reference to an AgentMachine
+	AgentMachineRefLabelKey = "agentMachineRef"
+	// AgentMachineRefNamespace is the namespace so an Agent can have a reference to an AgentMachine's namespace
+	AgentMachineRefNamespace = "agentMachineRefNamespace"
 
 	machineDeleteHookName = clusterv1.PreTerminateDeleteHookAnnotationPrefix + "/agentmachine"
 )
@@ -258,10 +261,9 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 				return &ctrl.Result{}, hookErr
 			}
 			return &ctrl.Result{}, nil
-		} else {
-			log.WithError(err).Errorf("Failed to get agent %s", agentMachine.Status.AgentRef.Name)
-			return &ctrl.Result{}, err
 		}
+		log.WithError(err).Errorf("Failed to get agent %s", agentMachine.Status.AgentRef.Name)
+		return &ctrl.Result{}, err
 	}
 
 	if funk.Contains(agent.ObjectMeta.Labels, AgentMachineRefLabelKey) || agent.Spec.ClusterDeploymentName != nil {
@@ -295,10 +297,9 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 			return &ctrl.Result{}, err
 		}
 		return &ctrl.Result{}, nil
-	} else {
-		log.Infof("Waiting for agent %s to reboot into discovery", agent.Name)
-		return &ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
+	log.Infof("Waiting for agent %s to reboot into discovery", agent.Name)
+	return &ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
 func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus.FieldLogger, machine *clusterv1.Machine) (*capiproviderv1.AgentCluster, error) {
@@ -644,7 +645,6 @@ func (r *AgentMachineReconciler) setStatus(agentMachine *capiproviderv1.AgentMac
 		conditions.WithStepCounter())
 
 	agentMachine.Status.Ready, _ = strconv.ParseBool(string(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status))
-
 	return nil
 }
 
