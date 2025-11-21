@@ -58,8 +58,9 @@ func newAgentCluster(name, namespace string, spec capiproviderv1.AgentClusterSpe
 func newCluster(namespacedName *types.NamespacedName) *clusterv1.Cluster {
 	spec := clusterv1.ClusterSpec{
 		ControlPlaneRef: clusterv1.ContractVersionedObjectReference{
-			Kind: "HostedControlPlane",
-			Name: namespacedName.Name,
+			Kind:     "HostedControlPlane",
+			Name:     namespacedName.Name,
+			APIGroup: "hypershift.openshift.io",
 		},
 		InfrastructureRef: clusterv1.ContractVersionedObjectReference{
 			Kind: "AgentCluster",
@@ -85,7 +86,7 @@ func createControlPlane(namespacedName *types.NamespacedName, baseDomain, pullSe
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"kind":       "HostedControlPlane",
-			"apiVersion": schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
+			"apiVersion": schema.GroupVersion{Group: "hypershift.openshift.io", Version: "v1beta1"}.String(),
 			"metadata": map[string]interface{}{
 				"name":      namespacedName.Name,
 				"namespace": namespacedName.Namespace,
@@ -349,6 +350,7 @@ var _ = Describe("agentcluster reconcile", func() {
 
 			clusterDeployment := &hivev1.ClusterDeployment{}
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			agentCluster.SetGroupVersionKind(capiproviderv1.GroupVersion.WithKind("AgentCluster"))
 			Expect(controllerutil.SetOwnerReference(agentCluster, clusterDeployment, acr.Scheme)).To(Succeed())
 			clusterDeployment.Labels = map[string]string{AgentClusterRefLabel: agentCluster.Name}
 			Expect(c.Update(ctx, clusterDeployment)).To(Succeed())
@@ -362,6 +364,7 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeFalse())
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, agentCluster)).To(Succeed())
+			agentCluster.SetGroupVersionKind(capiproviderv1.GroupVersion.WithKind("AgentCluster"))
 			agentCluster.ObjectMeta.Annotations = nil
 			Expect(c.Update(ctx, agentCluster)).To(BeNil())
 
@@ -369,6 +372,7 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(err).To(BeNil())
 			Expect(result).To(Equal(ctrl.Result{}))
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			agentCluster.SetGroupVersionKind(capiproviderv1.GroupVersion.WithKind("AgentCluster"))
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeTrue())
 		})
 		It("doesn't delete the cluster deployment when paused and agent cluster gets deleted", func() {

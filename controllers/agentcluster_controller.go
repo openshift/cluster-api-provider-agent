@@ -149,8 +149,8 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: agentClusterDependenciesWaitTime}, nil
 	}
 
-	// If the agentCluster has references a ClusterDeployment, sync from its status
-	return r.updateClusterStatus(ctx, log, agentCluster)
+	agentCluster.Status.Ready = true
+	return ctrl.Result{}, nil
 }
 
 func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructured, baseFieldName string, fields ...string) (string, bool, error) {
@@ -187,6 +187,8 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 	}
 
 	obj := &unstructured.Unstructured{}
+	obj.SetAPIVersion(cluster.Spec.ControlPlaneRef.APIGroup + "/v1beta1")
+	obj.SetKind(cluster.Spec.ControlPlaneRef.Kind)
 	key := client.ObjectKey{Name: cluster.Spec.ControlPlaneRef.Name, Namespace: cluster.Namespace}
 	if err = r.Client.Get(ctx, key, obj); err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve %s external object %q/%q", obj.GetKind(), key.Namespace, key.Name)
@@ -398,18 +400,6 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 	}
 
 	return r.Client.Create(ctx, agentClusterInstall)
-}
-
-func (r *AgentClusterReconciler) updateClusterStatus(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster) (ctrl.Result, error) {
-	log.Infof("Updating agentCluster status according to %s", agentCluster.Status.ClusterDeploymentRef.Name)
-	// Once the cluster have clusterDeploymentRef and ClusterInstallRef we should set the status to Ready
-	agentCluster.Status.Ready = true
-	if err := r.Status().Update(ctx, agentCluster); err != nil {
-		log.WithError(err).Error("Failed to set ready status")
-		return ctrl.Result{}, err
-
-	}
-	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
