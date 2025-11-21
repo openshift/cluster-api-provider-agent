@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -74,7 +74,7 @@ func newAgentMachine(name, namespace string, spec capiproviderv1.AgentMachineSpe
 			Name:      fmt.Sprintf("cluster-%s", name),
 			Namespace: namespace,
 		},
-		Spec:   clusterv1.ClusterSpec{InfrastructureRef: &corev1.ObjectReference{Namespace: agentCluster.Namespace, Name: agentCluster.Name}},
+		Spec:   clusterv1.ClusterSpec{InfrastructureRef: clusterv1.ContractVersionedObjectReference{Name: agentCluster.Name}},
 		Status: clusterv1.ClusterStatus{},
 	}
 	Expect(c.Create(ctx, &cluster)).To(BeNil())
@@ -253,9 +253,9 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(BeNil())
 		Expect(agentMachine.Status.Ready).To(BeEquivalentTo(true))
-		Expect(conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentReservedCondition)).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, string(capiproviderv1.InstalledCondition)).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, string(clusterv1.ReadyCondition)).Status).To(BeEquivalentTo("True"))
 	})
 
 	It("sets the finalizer and the machine delete hook annotation", func() {
@@ -295,7 +295,6 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(conditions.Get(agentMachine, capiproviderv1.AgentValidatedCondition).Status).To(BeEquivalentTo("False"))
 		Expect(conditions.Get(agentMachine, capiproviderv1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("False"))
 		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
 		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("False"))
 	})
 
@@ -337,11 +336,10 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine"}, agentMachine)).To(BeNil())
 		Expect(conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, capiproviderv1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentSpecSyncedCondition)).Status).To(BeEquivalentTo("True"))
 		Expect(conditions.Get(agentMachine, capiproviderv1.AgentValidatedCondition).Status).To(BeEquivalentTo("True"))
 		Expect(conditions.Get(agentMachine, capiproviderv1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("True"))
 		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
 		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("False"))
 
 		Expect(agentMachine.Status.AgentRef.Name).To(BeEquivalentTo("agent-10"))
@@ -390,7 +388,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		// mark the machine for deletion
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
-		conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.Set(machine, metav1.Condition{Type: string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition), Status: metav1.ConditionFalse, Reason: clusterv1.WaitingExternalHookV1Beta1Reason, Message: ""})
 		machine.Annotations[machineDeleteHookName] = ""
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
@@ -467,7 +465,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		agentMachine.Status.Ready = true
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-		conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.Set(machine, metav1.Condition{Type: string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition), Status: metav1.ConditionFalse, Reason: clusterv1.WaitingExternalHookV1Beta1Reason, Message: ""})
 		machine.Annotations[machineDeleteHookName] = ""
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
@@ -487,7 +485,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: testNamespace, Name: "missingAgent"}
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-		conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.Set(machine, metav1.Condition{Type: string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition), Status: metav1.ConditionFalse, Reason: clusterv1.WaitingExternalHookV1Beta1Reason, Message: ""})
 		machine.Annotations[machineDeleteHookName] = ""
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
@@ -507,7 +505,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		agentMachine.Status.Ready = true
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-		conditions.MarkTrue(machine, clusterv1.PreTerminateDeleteHookSucceededCondition)
+		conditions.Set(machine, metav1.Condition{Type: string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition), Status: metav1.ConditionTrue, Message: ""})
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
@@ -536,7 +534,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(c.Create(ctx, agent)).To(BeNil())
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-		conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.Set(machine, metav1.Condition{Type: string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition), Status: metav1.ConditionFalse, Reason: clusterv1.WaitingExternalHookV1Beta1Reason, Message: ""})
 		machine.Annotations[machineDeleteHookName] = ""
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
@@ -568,7 +566,7 @@ var _ = Describe("agentmachine reconcile", func() {
 			Expect(c.Create(ctx, agent)).To(BeNil())
 			Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-			conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
+			conditions.Set(machine, metav1.Condition{Type: string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition), Status: metav1.ConditionFalse, Reason: clusterv1.WaitingExternalHookV1Beta1Reason, Message: ""})
 			machine.Annotations[machineDeleteHookName] = ""
 			Expect(c.Update(ctx, machine)).To(BeNil())
 		})
@@ -664,7 +662,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 			// mark the machine for deletion
 			Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
-			conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
+			conditions.Set(machine, metav1.Condition{Type: string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition), Status: metav1.ConditionFalse, Reason: clusterv1.WaitingExternalHookV1Beta1Reason, Message: ""})
 			machine.Annotations = map[string]string{machineDeleteHookName: ""}
 			Expect(c.Update(ctx, machine)).To(BeNil())
 

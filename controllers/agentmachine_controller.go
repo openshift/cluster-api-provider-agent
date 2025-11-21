@@ -41,7 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -222,7 +222,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	}
 
 	// return if the machine is not waiting on this hook
-	cond := conditions.Get(machine, clusterv1.PreTerminateDeleteHookSucceededCondition)
+	cond := conditions.Get(machine, string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition))
 	if cond == nil {
 		if !agentMachine.DeletionTimestamp.IsZero() {
 			log.Warnf("Not starting agent machine removal until machine %s/%s pauses for delete hook", machine.Namespace, machine.Name)
@@ -231,7 +231,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	}
 
 	// If the hook was already processed and removed ensure the finalizer is removed and return
-	if cond.Status == corev1.ConditionTrue {
+	if cond.Status == metav1.ConditionTrue {
 		if err := r.removeFinalizer(agentMachine); err != nil {
 			log.Error(err)
 			return &ctrl.Result{}, err
@@ -239,7 +239,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 		return &ctrl.Result{}, nil
 	}
 
-	log.Infof("Machine is waiting on delete hook %s", clusterv1.PreTerminateDeleteHookSucceededCondition)
+	log.Infof("Machine is waiting on delete hook %s", clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition)
 	if agentMachine.Status.AgentRef == nil {
 		log.Info("Removing machine delete hook annotation - agent ref is nil")
 		if err := r.removeHookAndFinalizer(ctx, machine, agentMachine); err != nil {
@@ -308,7 +308,7 @@ func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus
 		return nil, err
 	}
 
-	agentClusterRef := types.NamespacedName{Name: cluster.Spec.InfrastructureRef.Name, Namespace: cluster.Spec.InfrastructureRef.Namespace}
+	agentClusterRef := types.NamespacedName{Name: cluster.Spec.InfrastructureRef.Name, Namespace: cluster.Namespace}
 	agentCluster := &capiproviderv1.AgentCluster{}
 	if err := r.Get(ctx, agentClusterRef, agentCluster); err != nil {
 		log.WithError(err).Errorf("Failed to get agentCluster %s", agentClusterRef)
@@ -547,10 +547,10 @@ func (r *AgentMachineReconciler) updateStatus(ctx context.Context, log logrus.Fi
 	agentMachine.Status.Ready = false
 	conditionPassed := setAgentReservedCondition(agentMachine, err)
 	if !conditionPassed {
-		conditions.MarkFalse(agentMachine, capiproviderv1.AgentSpecSyncedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
-		conditions.MarkFalse(agentMachine, capiproviderv1.AgentValidatedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
-		conditions.MarkFalse(agentMachine, capiproviderv1.AgentRequirementsMetCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
-		conditions.MarkFalse(agentMachine, capiproviderv1.InstalledCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
+		conditions.Set(agentMachine, metav1.Condition{Type: capiproviderv1.AgentSpecSyncedCondition, Status: metav1.ConditionFalse, Reason: capiproviderv1.AgentNotYetFoundReason, Message: "Agent not yet reserved"})
+		conditions.Set(agentMachine, metav1.Condition{Type: capiproviderv1.AgentValidatedCondition, Status: metav1.ConditionFalse, Reason: capiproviderv1.AgentNotYetFoundReason, Message: "Agent not yet reserved"})
+		conditions.Set(agentMachine, metav1.Condition{Type: capiproviderv1.AgentRequirementsMetCondition, Status: metav1.ConditionFalse, Reason: capiproviderv1.AgentNotYetFoundReason, Message: "Agent not yet reserved"})
+		conditions.Set(agentMachine, metav1.Condition{Type: capiproviderv1.InstalledCondition, Status: metav1.ConditionFalse, Reason: capiproviderv1.AgentNotYetFoundReason, Message: "Agent not yet reserved"})
 		err = r.setStatus(agentMachine)
 		return err
 	}
@@ -564,10 +564,10 @@ func (r *AgentMachineReconciler) updateStatus(ctx context.Context, log logrus.Fi
 		log.WithError(err).Errorf("failed to label Agent %s with AgentMachineRef", agent.Name)
 		return err
 	}
-	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.AgentSpecSyncedCondition, aiv1beta1.SpecSyncedCondition, clusterv1.ConditionSeverityError)
-	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.AgentValidatedCondition, aiv1beta1.ValidatedCondition, clusterv1.ConditionSeverityError)
-	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.AgentRequirementsMetCondition, aiv1beta1.RequirementsMetCondition, clusterv1.ConditionSeverityError)
-	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.InstalledCondition, aiv1beta1.InstalledCondition, clusterv1.ConditionSeverityInfo)
+	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.AgentSpecSyncedCondition, aiv1beta1.SpecSyncedCondition)
+	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.AgentValidatedCondition, aiv1beta1.ValidatedCondition)
+	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.AgentRequirementsMetCondition, aiv1beta1.RequirementsMetCondition)
+	setConditionByAgentCondition(agentMachine, agent, capiproviderv1.InstalledCondition, aiv1beta1.InstalledCondition)
 	err = r.setStatus(agentMachine)
 	return err
 }
@@ -599,49 +599,52 @@ func (r *AgentMachineReconciler) ensureAgentLabeled(ctx context.Context, agentMa
 }
 
 func setConditionByAgentCondition(agentMachine *capiproviderv1.AgentMachine, agent *aiv1beta1.Agent,
-	agentMachineConditionType clusterv1.ConditionType, agentConditionType openshiftconditionsv1.ConditionType,
-	failSeverity clusterv1.ConditionSeverity) bool {
-	agentCondition := openshiftconditionsv1.FindStatusCondition(agent.Status.Conditions, agentConditionType)
+	agentMachineConditionType string, agentConditionType openshiftconditionsv1.ConditionType) bool {
+
+	agentCondition := conditions.Get(agentMachine, agentMachineConditionType)
 	if agentCondition == nil {
-		conditions.MarkFalse(agentMachine, agentMachineConditionType, "", failSeverity, "")
+		conditions.Set(agentMachine, metav1.Condition{Type: agentMachineConditionType, Status: metav1.ConditionFalse, Reason: "", Message: ""})
 		return false
 	}
 	if agentCondition.Status == "True" {
-		conditions.MarkTrue(agentMachine, agentMachineConditionType)
+		conditions.Set(agentMachine, metav1.Condition{Type: agentMachineConditionType, Status: metav1.ConditionTrue, Reason: "", Message: ""})
 		return true
 	}
-	// We have a special case where failed installation is higher severity
-	if agentCondition.Type == aiv1beta1.InstalledCondition && agentCondition.Reason == aiv1beta1.InstallationFailedReason {
-		failSeverity = clusterv1.ConditionSeverityError
-	}
-	conditions.MarkFalse(agentMachine, agentMachineConditionType, agentCondition.Reason, failSeverity, agentCondition.Message)
+
+	conditions.Set(agentMachine, metav1.Condition{Type: agentMachineConditionType, Status: metav1.ConditionFalse, Reason: agentCondition.Reason, Message: agentCondition.Message})
 	return false
 }
 
 func setAgentReservedCondition(agentMachine *capiproviderv1.AgentMachine, err error) bool {
 	if agentMachine.Status.AgentRef == nil {
 		if err == nil {
-			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.NoSuitableAgentsReason, clusterv1.ConditionSeverityWarning, "")
+			conditions.Set(agentMachine, metav1.Condition{Type: capiproviderv1.AgentReservedCondition, Status: metav1.ConditionFalse, Reason: capiproviderv1.NoSuitableAgentsReason, Message: ""})
 		} else {
-			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, err.Error())
+			conditions.Set(agentMachine, metav1.Condition{Type: capiproviderv1.AgentReservedCondition, Status: metav1.ConditionFalse, Reason: capiproviderv1.AgentNotYetFoundReason, Message: err.Error()})
 		}
 		return false
 	}
-
-	conditions.MarkTrue(agentMachine, capiproviderv1.AgentReservedCondition)
+	conditions.Set(agentMachine, metav1.Condition{Type: capiproviderv1.AgentReservedCondition, Status: metav1.ConditionTrue})
 	return true
 }
 
 func (r *AgentMachineReconciler) setStatus(agentMachine *capiproviderv1.AgentMachine) error {
-	conditions.SetSummary(agentMachine,
-		conditions.WithConditions(capiproviderv1.AgentReservedCondition,
+	conditions.SetSummaryCondition(agentMachine,
+		agentMachine,
+		clusterv1.ReadyCondition,
+		conditions.ForConditionTypes{capiproviderv1.AgentReservedCondition,
 			capiproviderv1.AgentSpecSyncedCondition,
 			capiproviderv1.AgentValidatedCondition,
 			capiproviderv1.AgentRequirementsMetCondition,
 			capiproviderv1.InstalledCondition,
-		),
-		conditions.WithStepCounterIf(agentMachine.ObjectMeta.DeletionTimestamp.IsZero()),
-		conditions.WithStepCounter())
+		},
+		conditions.CustomMergeStrategy{
+			MergeStrategy: &WithStepCounterIf{
+				defaultStrategy: conditions.DefaultMergeStrategy(),
+				addStepCounter:  agentMachine.ObjectMeta.DeletionTimestamp.IsZero(),
+			},
+		},
+	)
 
 	agentMachine.Status.Ready, _ = strconv.ParseBool(string(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status))
 

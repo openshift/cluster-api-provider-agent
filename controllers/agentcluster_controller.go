@@ -35,7 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -179,13 +179,13 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 		return nil, nil
 	}
 
-	if cluster.Spec.ControlPlaneRef == nil {
+	if !cluster.Spec.ControlPlaneRef.IsDefined() {
 		log.Info("Waiting for Cluster to have OwnerRef on Control Plane for AgentCluster %s %s", agentCluster.Name, agentCluster.Namespace)
 		return nil, nil
 	}
 
-	obj := clusterutilv1.ObjectReferenceToUnstructured(*cluster.Spec.ControlPlaneRef)
-	key := client.ObjectKey{Name: obj.GetName(), Namespace: obj.GetNamespace()}
+	obj := &unstructured.Unstructured{}
+	key := client.ObjectKey{Name: cluster.Spec.ControlPlaneRef.Name, Namespace: cluster.Namespace}
 	if err = r.Client.Get(ctx, key, obj); err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve %s external object %q/%q", obj.GetKind(), key.Namespace, key.Name)
 	}

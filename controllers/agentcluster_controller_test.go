@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,17 +57,13 @@ func newAgentCluster(name, namespace string, spec capiproviderv1.AgentClusterSpe
 // newCluster return a CAPI cluster object.
 func newCluster(namespacedName *types.NamespacedName) *clusterv1.Cluster {
 	spec := clusterv1.ClusterSpec{
-		ControlPlaneRef: &corev1.ObjectReference{
-			Kind:       "HostedControlPlane",
-			Namespace:  namespacedName.Namespace,
-			Name:       namespacedName.Name,
-			APIVersion: schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
+		ControlPlaneRef: clusterv1.ContractVersionedObjectReference{
+			Kind: "HostedControlPlane",
+			Name: namespacedName.Name,
 		},
-		InfrastructureRef: &corev1.ObjectReference{
-			Kind:       "AgentCluster",
-			Namespace:  namespacedName.Namespace,
-			Name:       namespacedName.Name,
-			APIVersion: schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
+		InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+			Kind: "AgentCluster",
+			Name: namespacedName.Name,
 		},
 	}
 
@@ -236,7 +232,7 @@ var _ = Describe("agentcluster reconcile", func() {
 	})
 	It("no control plane reference in cluster", func() {
 		cluster := newCluster(&types.NamespacedName{Name: clusterName, Namespace: testNamespace})
-		cluster.Spec.ControlPlaneRef = nil
+		cluster.Spec.ControlPlaneRef = clusterv1.ContractVersionedObjectReference{}
 
 		agentCluster := newAgentCluster(clusterName, testNamespace, capiproviderv1.AgentClusterSpec{
 			IgnitionEndpoint: &capiproviderv1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
