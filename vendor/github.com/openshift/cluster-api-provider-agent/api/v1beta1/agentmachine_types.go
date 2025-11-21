@@ -19,15 +19,16 @@ package v1beta1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+
 	"sigs.k8s.io/cluster-api/errors"
 )
 
 const (
-	AgentReservedCondition        clusterv1.ConditionType = "AgentReserved"
-	AgentSpecSyncedCondition      clusterv1.ConditionType = "AgentSpecSynced"
-	AgentValidatedCondition       clusterv1.ConditionType = "AgentValidated"
-	AgentRequirementsMetCondition clusterv1.ConditionType = "AgentRequirementsMet"
-	InstalledCondition            clusterv1.ConditionType = "Installed"
+	AgentReservedCondition        string = "AgentReserved"
+	AgentSpecSyncedCondition      string = "AgentSpecSynced"
+	AgentValidatedCondition       string = "AgentValidated"
+	AgentRequirementsMetCondition string = "AgentRequirementsMet"
+	InstalledCondition            string = "Installed"
 
 	AgentNotYetFoundReason = "AgentNotYetFound"
 	NoSuitableAgentsReason = "NoSuitableAgents"
@@ -96,7 +97,7 @@ type AgentMachineStatus struct {
 
 	// Conditions defines current service state of the AgentMachine.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -113,12 +114,12 @@ type AgentMachine struct {
 }
 
 // GetConditions returns the observations of the operational state of the AWSMachine resource.
-func (r *AgentMachine) GetConditions() clusterv1.Conditions {
+func (r *AgentMachine) GetConditions() []metav1.Condition {
 	return r.Status.Conditions
 }
 
 // SetConditions sets the underlying service state of the AWSMachine to the predescribed clusterv1.Conditions.
-func (r *AgentMachine) SetConditions(conditions clusterv1.Conditions) {
+func (r *AgentMachine) SetConditions(conditions []metav1.Condition) {
 	r.Status.Conditions = conditions
 }
 
