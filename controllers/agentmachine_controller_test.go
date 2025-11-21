@@ -253,9 +253,9 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(BeNil())
 		Expect(agentMachine.Status.Ready).To(BeEquivalentTo(true))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentReservedCondition)).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.InstalledCondition)).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, string(clusterv1.ReadyCondition)).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("True"))
 	})
 
 	It("sets the finalizer and the machine delete hook annotation", func() {
@@ -336,7 +336,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine"}, agentMachine)).To(BeNil())
 		Expect(conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentSpecSyncedCondition)).Status).To(BeEquivalentTo("True"))
+		Expect(conditions.Get(agentMachine, capiproviderv1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("True"))
 		Expect(conditions.Get(agentMachine, capiproviderv1.AgentValidatedCondition).Status).To(BeEquivalentTo("True"))
 		Expect(conditions.Get(agentMachine, capiproviderv1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("True"))
 		Expect(conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("False"))

@@ -45,7 +45,8 @@ import (
 
 const (
 	agentClusterDependenciesWaitTime = 5 * time.Second
-	AgentClusterRefLabel             = "agentClusterRef"
+	// AgentClusterRefLabel is the label used to reference the AgentCluster from a ClusterDeployment
+	AgentClusterRefLabel = "agentClusterRef"
 )
 
 var (
@@ -74,6 +75,7 @@ type ControlPlane struct {
 //+kubebuilder:rbac:groups=extensions.hive.openshift.io,resources=agentclusterinstalls,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=hypershift.openshift.io,resources=hostedcontrolplanes,verbs=get;list;watch;
 
+// Reconcile is the main entry point for the AgentClusterReconciler. It reconciles an AgentCluster object.
 func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, rerr error) {
 	log := r.Log.WithFields(
 		logrus.Fields{
@@ -355,10 +357,9 @@ func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, 
 				return err
 			}
 			return nil
-		} else {
-			log.WithError(err).Error("failed to get AgentClusterInstall")
-			return err
 		}
+		log.WithError(err).Error("failed to get AgentClusterInstall")
+		return err
 	}
 	return nil
 }
