@@ -113,12 +113,12 @@ type AgentMachine struct {
 	Status AgentMachineStatus `json:"status,omitempty"`
 }
 
-// GetConditions returns the observations of the operational state of the AWSMachine resource.
+// GetConditions returns the observations of the operational state of the AgentMachine resource.
 func (r *AgentMachine) GetConditions() []metav1.Condition {
 	return r.Status.Conditions
 }
 
-// SetConditions sets the underlying service state of the AWSMachine to the predescribed clusterv1.Conditions.
+// SetConditions sets the underlying service state of the AgentMachine to the predescribed metav1.Conditions.
 func (r *AgentMachine) SetConditions(conditions []metav1.Condition) {
 	r.Status.Conditions = conditions
 }
