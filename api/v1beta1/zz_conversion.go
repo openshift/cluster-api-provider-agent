@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	configv1 "github.com/openshift/api/config/v1"
-	"github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
@@ -22,7 +21,6 @@ var (
 )
 
 func init() {
-	v1alpha1.AddToScheme(localScheme)
 	configv1.AddToScheme(localScheme)
 	clientgoscheme.AddToScheme(localScheme)
 	AddToScheme(localScheme)
