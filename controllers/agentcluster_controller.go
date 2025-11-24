@@ -405,6 +405,7 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("agentcluster-controller").
 		For(&capiproviderv1.AgentCluster{}).
 		Complete(r)
 }
