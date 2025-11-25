@@ -150,7 +150,10 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// If the agentCluster has references a ClusterDeployment, sync from its status
-	return r.updateClusterStatus(ctx, log, agentCluster)
+	log.Infof("Updating agentCluster status according to %s", agentCluster.Status.ClusterDeploymentRef.Name)
+	// Once the cluster have clusterDeploymentRef and ClusterInstallRef we should set the status to Ready
+	agentCluster.Status.Ready = true
+	return ctrl.Result{}, nil
 }
 
 func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructured, baseFieldName string, fields ...string) (string, bool, error) {
@@ -346,6 +349,7 @@ func (r *AgentClusterReconciler) ensureOwnedClusterDeployment(ctx context.Contex
 	alreadyOwned := clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)
 	agentClusterRef := clusterDeployment.ObjectMeta.Labels[AgentClusterRefLabel]
 	if alreadyOwned && agentClusterRef != "" && agentClusterRef == agentCluster.Name {
+		r.Log.Infof("ClusterDeployment %s already owned by AgentCluster %s", clusterDeployment.Name, agentCluster.Name)
 		return nil
 	}
 	patch := client.MergeFrom(clusterDeployment.DeepCopy())
@@ -414,18 +418,6 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 	}
 
 	return r.Client.Create(ctx, agentClusterInstall)
-}
-
-func (r *AgentClusterReconciler) updateClusterStatus(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster) (ctrl.Result, error) {
-	log.Infof("Updating agentCluster status according to %s", agentCluster.Status.ClusterDeploymentRef.Name)
-	// Once the cluster have clusterDeploymentRef and ClusterInstallRef we should set the status to Ready
-	agentCluster.Status.Ready = true
-	if err := r.Status().Update(ctx, agentCluster); err != nil {
-		log.WithError(err).Error("Failed to set ready status")
-		return ctrl.Result{}, err
-
-	}
-	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
