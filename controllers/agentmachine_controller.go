@@ -250,9 +250,9 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 
 	// If the hook was already processed and removed ensure the finalizer is removed and return
 	if cond.Status == corev1.ConditionTrue {
-		if err := r.removeFinalizer(agentMachine); err != nil {
-			log.Error(err)
-			return &ctrl.Result{}, err
+		if removeFinalizerError := r.removeFinalizer(agentMachine); removeFinalizerError != nil {
+			log.Error(removeFinalizerError)
+			return &ctrl.Result{}, removeFinalizerError
 		}
 		return &ctrl.Result{}, nil
 	}
@@ -260,9 +260,9 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	log.Infof("Machine is waiting on delete hook %s", clusterv1.PreTerminateDeleteHookSucceededCondition)
 	if agentMachine.Status.AgentRef == nil {
 		log.Info("Removing machine delete hook annotation - agent ref is nil")
-		if err := r.removeHookAndFinalizer(ctx, machine, agentMachine); err != nil {
-			log.Error(err)
-			return &ctrl.Result{}, err
+		if removeHookAndFinalizerError := r.removeHookAndFinalizer(ctx, machine, agentMachine); removeHookAndFinalizerError != nil {
+			log.Error(removeHookAndFinalizerError)
+			return &ctrl.Result{}, removeHookAndFinalizerError
 		}
 		return &ctrl.Result{}, nil
 	}
@@ -642,7 +642,8 @@ func setConditionByAgentCondition(agentMachine *capiproviderv1.AgentMachine, age
 	if agentCondition.Type == aiv1beta1.InstalledCondition && agentCondition.Reason == aiv1beta1.InstallationFailedReason {
 		failSeverity = clusterv1.ConditionSeverityError
 	}
-	clusterv1beta1conditions.MarkFalse(agentMachine, agentMachineConditionType, agentCondition.Reason, failSeverity, agentCondition.Message)
+	msg := agentCondition.Message
+	clusterv1beta1conditions.MarkFalse(agentMachine, agentMachineConditionType, agentCondition.Reason, failSeverity, "%s", msg)
 	return false
 }
 
@@ -651,7 +652,8 @@ func setAgentReservedCondition(agentMachine *capiproviderv1.AgentMachine, err er
 		if err == nil {
 			clusterv1beta1conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.NoSuitableAgentsReason, clusterv1.ConditionSeverityWarning, "")
 		} else {
-			clusterv1beta1conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, err.Error())
+			msg := err.Error()
+			clusterv1beta1conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "%s", msg)
 		}
 		return false
 	}
