@@ -181,12 +181,17 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 		return nil, nil
 	}
 
-	if cluster.Spec.ControlPlaneRef == nil {
+	if !cluster.Spec.ControlPlaneRef.IsDefined() {
 		log.Info("Waiting for Cluster to have OwnerRef on Control Plane for AgentCluster %s %s", agentCluster.Name, agentCluster.Namespace)
 		return nil, nil
 	}
 
-	obj := clusterutilv1.ObjectReferenceToUnstructured(*cluster.Spec.ControlPlaneRef)
+	controlPlaneRef := corev1.ObjectReference{}
+	err = clusterv1.Convert_v1beta2_ContractVersionedObjectReference_To_v1_ObjectReference(&cluster.Spec.ControlPlaneRef, &controlPlaneRef, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert ControlPlaneRef to ObjectReference")
+	}
+	obj := clusterutilv1.ObjectReferenceToUnstructured(controlPlaneRef)
 	key := client.ObjectKey{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 	if err = r.Client.Get(ctx, key, obj); err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve %s external object %q/%q", obj.GetKind(), key.Namespace, key.Name)
