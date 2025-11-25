@@ -167,12 +167,28 @@ func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructure
 	return value, ok, nil
 }
 
+func (r *AgentClusterReconciler) getCluster(ctx context.Context, agentCluster *capiproviderv1.AgentCluster) (*clusterv1.Cluster, error) {
+	cluster := &clusterv1.Cluster{}
+	if agentCluster.ObjectMeta.OwnerReferences != nil {
+		for _, owner := range agentCluster.ObjectMeta.OwnerReferences {
+			if owner.Kind == clusterv1.ClusterKind && owner.APIVersion == clusterv1.GroupVersion.String() {
+				err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Namespace, Name: owner.Name}, cluster)
+				if err != nil {
+					return nil, err
+				}
+				return cluster, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
 func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus.FieldLogger,
 	agentCluster *capiproviderv1.AgentCluster) (*ControlPlane, error) {
 
 	log.Info("Getting control plane")
 	// Fetch the CAPI Cluster.
-	cluster, err := clusterutilv1.GetOwnerCluster(ctx, r.Client, agentCluster.ObjectMeta)
+	cluster, err := r.getCluster(ctx, agentCluster)
 	if err != nil {
 		return nil, err
 	}
