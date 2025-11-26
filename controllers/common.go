@@ -29,7 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -47,8 +48,7 @@ func ensureSecretLabel(ctx context.Context, c client.Client, secret *corev1.Secr
 		metav1.SetMetaDataLabel(&secret.ObjectMeta, BackupLabel, BackupLabelValue)
 		err := c.Update(ctx, secret)
 		if err != nil {
-			errorMessage := fmt.Sprintf("failed to set label %s:%s for secret %s/%s", BackupLabel, BackupLabelValue, secret.Namespace, secret.Name)
-			return errors.Wrapf(err, errorMessage)
+			return errors.Wrapf(err, "failed to set label %s:%s for secret %s/%s", BackupLabel, BackupLabelValue, secret.Namespace, secret.Name)
 		}
 	}
 	return nil
@@ -62,4 +62,31 @@ func GetKubeClientSchemes(schemes *runtime.Scheme) *runtime.Scheme {
 	utilruntime.Must(hiveext.AddToScheme(schemes))
 	utilruntime.Must(clusterv1.AddToScheme(schemes))
 	return schemes
+}
+
+// WithStepCounterIf is a custom merge strategy that adds a step counter to the message.
+type WithStepCounterIf struct {
+	defaultStrategy conditions.MergeStrategy
+	addStepCounter  bool
+}
+
+// Merge merges the conditions and adds a step counter to the message if addStepCounter is true.
+func (s *WithStepCounterIf) Merge(op conditions.MergeOperation, conditions []conditions.ConditionWithOwnerInfo, conditionTypes []string) (metav1.ConditionStatus, string, string, error) {
+	status, reason, message, err := s.defaultStrategy.Merge(op, conditions, conditionTypes)
+	if err != nil {
+		return status, reason, message, err
+	}
+
+	if s.addStepCounter {
+		trueCount := 0
+		for _, c := range conditions {
+			if c.Status == metav1.ConditionTrue {
+				trueCount++
+			}
+		}
+		totalCount := len(conditionTypes)
+		message = fmt.Sprintf("%s (%d/%d conditions met)", message, trueCount, totalCount)
+	}
+
+	return status, reason, message, nil
 }

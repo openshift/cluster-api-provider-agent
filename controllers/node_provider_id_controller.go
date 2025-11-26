@@ -114,6 +114,7 @@ func (r *NodeProviderIDReconciler) setNodeProviderID(ctx context.Context, log lo
 // SetupWithManager sets up the controller with the Manager.
 func (r *NodeProviderIDReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("node-provider-id-controller").
 		For(&capiproviderv1.AgentMachine{}).
 		Complete(r)
 }

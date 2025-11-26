@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,17 +57,14 @@ func newAgentCluster(name, namespace string, spec capiproviderv1.AgentClusterSpe
 // newCluster return a CAPI cluster object.
 func newCluster(namespacedName *types.NamespacedName) *clusterv1.Cluster {
 	spec := clusterv1.ClusterSpec{
-		ControlPlaneRef: &corev1.ObjectReference{
-			Kind:       "HostedControlPlane",
-			Namespace:  namespacedName.Namespace,
-			Name:       namespacedName.Name,
-			APIVersion: schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
+		ControlPlaneRef: clusterv1.ContractVersionedObjectReference{
+			Kind:     "HostedControlPlane",
+			Name:     namespacedName.Name,
+			APIGroup: "hypershift.openshift.io",
 		},
-		InfrastructureRef: &corev1.ObjectReference{
-			Kind:       "AgentCluster",
-			Namespace:  namespacedName.Namespace,
-			Name:       namespacedName.Name,
-			APIVersion: schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
+		InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+			Kind: "AgentCluster",
+			Name: namespacedName.Name,
 		},
 	}
 
@@ -89,7 +86,7 @@ func createControlPlane(namespacedName *types.NamespacedName, baseDomain, pullSe
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"kind":       "HostedControlPlane",
-			"apiVersion": schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
+			"apiVersion": schema.GroupVersion{Group: "hypershift.openshift.io", Version: "v1beta1"}.String(),
 			"metadata": map[string]interface{}{
 				"name":      namespacedName.Name,
 				"namespace": namespacedName.Namespace,
@@ -236,7 +233,7 @@ var _ = Describe("agentcluster reconcile", func() {
 	})
 	It("no control plane reference in cluster", func() {
 		cluster := newCluster(&types.NamespacedName{Name: clusterName, Namespace: testNamespace})
-		cluster.Spec.ControlPlaneRef = nil
+		cluster.Spec.ControlPlaneRef = clusterv1.ContractVersionedObjectReference{}
 
 		agentCluster := newAgentCluster(clusterName, testNamespace, capiproviderv1.AgentClusterSpec{
 			IgnitionEndpoint: &capiproviderv1.IgnitionEndpoint{Url: "https://1.2.3.4:555/ignition"},
@@ -339,7 +336,7 @@ var _ = Describe("agentcluster reconcile", func() {
 		})
 		It("recovers its cluster deployment when unpaused", func() {
 			// For this test the agent cluster needs to have a valid cluster deployment reference, otherwise
-			// the reconcilation will not orphan it. It also needs a valid control plane endpoint because
+			// the reconciliation will not orphan it. It also needs a valid control plane endpoint because
 			// that is verified by the reconciler.
 			agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
 			agentCluster.Spec.ControlPlaneEndpoint.Host = "1.2.3.4"
@@ -353,6 +350,7 @@ var _ = Describe("agentcluster reconcile", func() {
 
 			clusterDeployment := &hivev1.ClusterDeployment{}
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			agentCluster.SetGroupVersionKind(capiproviderv1.GroupVersion.WithKind("AgentCluster"))
 			Expect(controllerutil.SetOwnerReference(agentCluster, clusterDeployment, acr.Scheme)).To(Succeed())
 			clusterDeployment.Labels = map[string]string{AgentClusterRefLabel: agentCluster.Name}
 			Expect(c.Update(ctx, clusterDeployment)).To(Succeed())
@@ -366,6 +364,7 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeFalse())
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, agentCluster)).To(Succeed())
+			agentCluster.SetGroupVersionKind(capiproviderv1.GroupVersion.WithKind("AgentCluster"))
 			agentCluster.ObjectMeta.Annotations = nil
 			Expect(c.Update(ctx, agentCluster)).To(BeNil())
 
@@ -373,11 +372,12 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(err).To(BeNil())
 			Expect(result).To(Equal(ctrl.Result{}))
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			agentCluster.SetGroupVersionKind(capiproviderv1.GroupVersion.WithKind("AgentCluster"))
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeTrue())
 		})
 		It("doesn't delete the cluster deployment when paused and agent cluster gets deleted", func() {
 			// For this test the agent cluster needs to have a valid cluster deployment reference, otherwise
-			// the reconcilation will not orphan it.
+			// the reconciliation will not orphan it.
 			agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
 			agentCluster.Status.ClusterDeploymentRef.Namespace = testNamespace
 			agentCluster.Status.ClusterDeploymentRef.Name = clusterName
