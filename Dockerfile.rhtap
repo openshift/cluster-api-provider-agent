@@ -7,6 +7,9 @@ COPY . .
 RUN CGO_ENABLED=1 go build -a -o manager main.go
 
 FROM registry.redhat.io/rhel9-2-els/rhel:9.2
+
+ARG version=2.11
+
 LABEL \
     name="cluster-api-provider-agent" \
     com.redhat.component="cluster-api-provider-agent" \
@@ -16,7 +19,13 @@ LABEL \
     cluster-api-provider-agent serves as infrastructure provider for Kubernetes cluster-api." \
     summary="Kubernetes-native declarative infrastructure for agent-based installation." \
     io.k8s.display-name="cluster-api-provider-agent" \
-    io.openshift.tags="mce hypershift cluster-api-provider-agent"
+    io.openshift.tags="mce hypershift cluster-api-provider-agent" \
+    version="${version}" \
+    release="${version}" \
+    distribution-scope="public" \
+    url="https://github.com/openshift/cluster-api-provider-agent" \
+    vendor="Red Hat, Inc."
+
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532
