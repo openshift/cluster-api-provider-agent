@@ -35,7 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,7 +45,8 @@ import (
 
 const (
 	agentClusterDependenciesWaitTime = 5 * time.Second
-	AgentClusterRefLabel             = "agentClusterRef"
+	// AgentClusterRefLabel is the label used to reference the AgentCluster from a ClusterDeployment
+	AgentClusterRefLabel = "agentClusterRef"
 )
 
 var (
@@ -74,6 +75,7 @@ type ControlPlane struct {
 //+kubebuilder:rbac:groups=extensions.hive.openshift.io,resources=agentclusterinstalls,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=hypershift.openshift.io,resources=hostedcontrolplanes,verbs=get;list;watch;
 
+// Reconcile is the main entry point for the AgentClusterReconciler. It reconciles an AgentCluster object.
 func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, rerr error) {
 	log := r.Log.WithFields(
 		logrus.Fields{
@@ -148,7 +150,10 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// If the agentCluster has references a ClusterDeployment, sync from its status
-	return r.updateClusterStatus(ctx, log, agentCluster)
+	log.Infof("Updating agentCluster status according to %s", agentCluster.Status.ClusterDeploymentRef.Name)
+	// Once the cluster have clusterDeploymentRef and ClusterInstallRef we should set the status to Ready
+	agentCluster.Status.Ready = true
+	return ctrl.Result{}, nil
 }
 
 func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructured, baseFieldName string, fields ...string) (string, bool, error) {
@@ -165,12 +170,28 @@ func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructure
 	return value, ok, nil
 }
 
+func (r *AgentClusterReconciler) getCluster(ctx context.Context, agentCluster *capiproviderv1.AgentCluster) (*clusterv1.Cluster, error) {
+	cluster := &clusterv1.Cluster{}
+	if agentCluster.ObjectMeta.OwnerReferences != nil {
+		for _, owner := range agentCluster.ObjectMeta.OwnerReferences {
+			if owner.Kind == clusterv1.ClusterKind && owner.APIVersion == clusterv1.GroupVersion.String() {
+				err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Namespace, Name: owner.Name}, cluster)
+				if err != nil {
+					return nil, err
+				}
+				return cluster, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
 func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus.FieldLogger,
 	agentCluster *capiproviderv1.AgentCluster) (*ControlPlane, error) {
 
 	log.Info("Getting control plane")
 	// Fetch the CAPI Cluster.
-	cluster, err := clusterutilv1.GetOwnerCluster(ctx, r.Client, agentCluster.ObjectMeta)
+	cluster, err := r.getCluster(ctx, agentCluster)
 	if err != nil {
 		return nil, err
 	}
@@ -328,6 +349,7 @@ func (r *AgentClusterReconciler) ensureOwnedClusterDeployment(ctx context.Contex
 	alreadyOwned := clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)
 	agentClusterRef := clusterDeployment.ObjectMeta.Labels[AgentClusterRefLabel]
 	if alreadyOwned && agentClusterRef != "" && agentClusterRef == agentCluster.Name {
+		r.Log.Infof("ClusterDeployment %s already owned by AgentCluster %s", clusterDeployment.Name, agentCluster.Name)
 		return nil
 	}
 	patch := client.MergeFrom(clusterDeployment.DeepCopy())
@@ -355,10 +377,9 @@ func (r *AgentClusterReconciler) ensureAgentClusterInstall(ctx context.Context, 
 				return err
 			}
 			return nil
-		} else {
-			log.WithError(err).Error("failed to get AgentClusterInstall")
-			return err
 		}
+		log.WithError(err).Error("failed to get AgentClusterInstall")
+		return err
 	}
 	return nil
 }
@@ -399,21 +420,10 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 	return r.Client.Create(ctx, agentClusterInstall)
 }
 
-func (r *AgentClusterReconciler) updateClusterStatus(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster) (ctrl.Result, error) {
-	log.Infof("Updating agentCluster status according to %s", agentCluster.Status.ClusterDeploymentRef.Name)
-	// Once the cluster have clusterDeploymentRef and ClusterInstallRef we should set the status to Ready
-	agentCluster.Status.Ready = true
-	if err := r.Status().Update(ctx, agentCluster); err != nil {
-		log.WithError(err).Error("Failed to set ready status")
-		return ctrl.Result{}, err
-
-	}
-	return ctrl.Result{}, nil
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("agentcluster-controller").
 		For(&capiproviderv1.AgentCluster{}).
 		Complete(r)
 }

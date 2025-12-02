@@ -41,9 +41,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clusterutil "sigs.k8s.io/cluster-api/util"
-	"sigs.k8s.io/cluster-api/util/conditions"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1beta1conditions "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,9 +52,12 @@ import (
 )
 
 const (
+	// AgentMachineFinalizerName is the finalizer name for the AgentMachine
 	AgentMachineFinalizerName = "agentmachine." + aiv1beta1.Group + "/deprovision"
-	AgentMachineRefLabelKey   = "agentMachineRef"
-	AgentMachineRefNamespace  = "agentMachineRefNamespace"
+	// AgentMachineRefLabelKey is the label key so an Agent can have a reference to an AgentMachine
+	AgentMachineRefLabelKey = "agentMachineRef"
+	// AgentMachineRefNamespace is the namespace so an Agent can have a reference to an AgentMachine's namespace
+	AgentMachineRefNamespace = "agentMachineRefNamespace"
 
 	machineDeleteHookName = clusterv1.PreTerminateDeleteHookAnnotationPrefix + "/agentmachine"
 )
@@ -103,7 +105,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.Info("AgentMachine Reconcile ended")
 	}()
 
-	machine, err := clusterutil.GetOwnerMachine(ctx, r.Client, agentMachine.ObjectMeta)
+	machine, err := r.getMachine(ctx, agentMachine)
 	if err != nil {
 		// It's possible that the machine delete hook was removed but the finalizer failed to remove for some reason
 		// In this case the machine would be gone, but the agent machine would not be able to be removed
@@ -167,6 +169,22 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, nil)
 }
 
+func (r *AgentMachineReconciler) getMachine(ctx context.Context, agentMachine *capiproviderv1.AgentMachine) (*clusterv1.Machine, error) {
+	machine := &clusterv1.Machine{}
+	if agentMachine.ObjectMeta.OwnerReferences != nil {
+		for _, owner := range agentMachine.ObjectMeta.OwnerReferences {
+			if owner.Kind == "Machine" && owner.APIVersion == clusterv1.GroupVersion.String() {
+				err := r.Get(ctx, types.NamespacedName{Namespace: agentMachine.Namespace, Name: owner.Name}, machine)
+				if err != nil {
+					return nil, err
+				}
+				return machine, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
 func (r *AgentMachineReconciler) removeFinalizer(agentMachine *capiproviderv1.AgentMachine) error {
 	if funk.ContainsString(agentMachine.GetFinalizers(), AgentMachineFinalizerName) {
 		controllerutil.RemoveFinalizer(agentMachine, AgentMachineFinalizerName)
@@ -222,7 +240,7 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	}
 
 	// return if the machine is not waiting on this hook
-	cond := conditions.Get(machine, clusterv1.PreTerminateDeleteHookSucceededCondition)
+	cond := clusterv1beta1conditions.Get(machine, clusterv1.PreTerminateDeleteHookSucceededCondition)
 	if cond == nil {
 		if !agentMachine.DeletionTimestamp.IsZero() {
 			log.Warnf("Not starting agent machine removal until machine %s/%s pauses for delete hook", machine.Namespace, machine.Name)
@@ -232,9 +250,9 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 
 	// If the hook was already processed and removed ensure the finalizer is removed and return
 	if cond.Status == corev1.ConditionTrue {
-		if err := r.removeFinalizer(agentMachine); err != nil {
-			log.Error(err)
-			return &ctrl.Result{}, err
+		if removeFinalizerError := r.removeFinalizer(agentMachine); removeFinalizerError != nil {
+			log.Error(removeFinalizerError)
+			return &ctrl.Result{}, removeFinalizerError
 		}
 		return &ctrl.Result{}, nil
 	}
@@ -242,9 +260,9 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 	log.Infof("Machine is waiting on delete hook %s", clusterv1.PreTerminateDeleteHookSucceededCondition)
 	if agentMachine.Status.AgentRef == nil {
 		log.Info("Removing machine delete hook annotation - agent ref is nil")
-		if err := r.removeHookAndFinalizer(ctx, machine, agentMachine); err != nil {
-			log.Error(err)
-			return &ctrl.Result{}, err
+		if removeHookAndFinalizerError := r.removeHookAndFinalizer(ctx, machine, agentMachine); removeHookAndFinalizerError != nil {
+			log.Error(removeHookAndFinalizerError)
+			return &ctrl.Result{}, removeHookAndFinalizerError
 		}
 		return &ctrl.Result{}, nil
 	}
@@ -258,10 +276,9 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 				return &ctrl.Result{}, hookErr
 			}
 			return &ctrl.Result{}, nil
-		} else {
-			log.WithError(err).Errorf("Failed to get agent %s", agentMachine.Status.AgentRef.Name)
-			return &ctrl.Result{}, err
 		}
+		log.WithError(err).Errorf("Failed to get agent %s", agentMachine.Status.AgentRef.Name)
+		return &ctrl.Result{}, err
 	}
 
 	if funk.Contains(agent.ObjectMeta.Labels, AgentMachineRefLabelKey) || agent.Spec.ClusterDeploymentName != nil {
@@ -295,20 +312,31 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 			return &ctrl.Result{}, err
 		}
 		return &ctrl.Result{}, nil
-	} else {
-		log.Infof("Waiting for agent %s to reboot into discovery", agent.Name)
-		return &ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
+	log.Infof("Waiting for agent %s to reboot into discovery", agent.Name)
+	return &ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+}
+
+func (r *AgentMachineReconciler) getCluster(ctx context.Context, machine *clusterv1.Machine) (*clusterv1.Cluster, error) {
+	cluster := &clusterv1.Cluster{}
+	if machine.ObjectMeta.Labels[clusterv1.ClusterNameLabel] == "" {
+		return nil, errors.New("machine is missing cluster label")
+	}
+	err := r.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.ObjectMeta.Labels[clusterv1.ClusterNameLabel]}, cluster)
+	if err != nil {
+		return nil, err
+	}
+	return cluster, nil
 }
 
 func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus.FieldLogger, machine *clusterv1.Machine) (*capiproviderv1.AgentCluster, error) {
-	cluster, err := clusterutil.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
+	cluster, err := r.getCluster(ctx, machine)
 	if err != nil {
-		log.Info("Machine is missing cluster label or cluster does not exist")
+		log.WithError(err).Warn("failed to get cluster from metadata")
 		return nil, err
 	}
 
-	agentClusterRef := types.NamespacedName{Name: cluster.Spec.InfrastructureRef.Name, Namespace: cluster.Spec.InfrastructureRef.Namespace}
+	agentClusterRef := types.NamespacedName{Name: cluster.Spec.InfrastructureRef.Name, Namespace: cluster.Namespace}
 	agentCluster := &capiproviderv1.AgentCluster{}
 	if err := r.Get(ctx, agentClusterRef, agentCluster); err != nil {
 		log.WithError(err).Errorf("Failed to get agentCluster %s", agentClusterRef)
@@ -547,10 +575,10 @@ func (r *AgentMachineReconciler) updateStatus(ctx context.Context, log logrus.Fi
 	agentMachine.Status.Ready = false
 	conditionPassed := setAgentReservedCondition(agentMachine, err)
 	if !conditionPassed {
-		conditions.MarkFalse(agentMachine, capiproviderv1.AgentSpecSyncedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
-		conditions.MarkFalse(agentMachine, capiproviderv1.AgentValidatedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
-		conditions.MarkFalse(agentMachine, capiproviderv1.AgentRequirementsMetCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
-		conditions.MarkFalse(agentMachine, capiproviderv1.InstalledCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
+		clusterv1beta1conditions.MarkFalse(agentMachine, capiproviderv1.AgentSpecSyncedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
+		clusterv1beta1conditions.MarkFalse(agentMachine, capiproviderv1.AgentValidatedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
+		clusterv1beta1conditions.MarkFalse(agentMachine, capiproviderv1.AgentRequirementsMetCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
+		clusterv1beta1conditions.MarkFalse(agentMachine, capiproviderv1.InstalledCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "Agent not yet reserved")
 		err = r.setStatus(agentMachine)
 		return err
 	}
@@ -603,48 +631,49 @@ func setConditionByAgentCondition(agentMachine *capiproviderv1.AgentMachine, age
 	failSeverity clusterv1.ConditionSeverity) bool {
 	agentCondition := openshiftconditionsv1.FindStatusCondition(agent.Status.Conditions, agentConditionType)
 	if agentCondition == nil {
-		conditions.MarkFalse(agentMachine, agentMachineConditionType, "", failSeverity, "")
+		clusterv1beta1conditions.MarkFalse(agentMachine, agentMachineConditionType, "", failSeverity, "")
 		return false
 	}
 	if agentCondition.Status == "True" {
-		conditions.MarkTrue(agentMachine, agentMachineConditionType)
+		clusterv1beta1conditions.MarkTrue(agentMachine, agentMachineConditionType)
 		return true
 	}
 	// We have a special case where failed installation is higher severity
 	if agentCondition.Type == aiv1beta1.InstalledCondition && agentCondition.Reason == aiv1beta1.InstallationFailedReason {
 		failSeverity = clusterv1.ConditionSeverityError
 	}
-	conditions.MarkFalse(agentMachine, agentMachineConditionType, agentCondition.Reason, failSeverity, agentCondition.Message)
+	msg := agentCondition.Message
+	clusterv1beta1conditions.MarkFalse(agentMachine, agentMachineConditionType, agentCondition.Reason, failSeverity, "%s", msg)
 	return false
 }
 
 func setAgentReservedCondition(agentMachine *capiproviderv1.AgentMachine, err error) bool {
 	if agentMachine.Status.AgentRef == nil {
 		if err == nil {
-			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.NoSuitableAgentsReason, clusterv1.ConditionSeverityWarning, "")
+			clusterv1beta1conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.NoSuitableAgentsReason, clusterv1.ConditionSeverityWarning, "")
 		} else {
-			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, err.Error())
+			msg := err.Error()
+			clusterv1beta1conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "%s", msg)
 		}
 		return false
 	}
 
-	conditions.MarkTrue(agentMachine, capiproviderv1.AgentReservedCondition)
+	clusterv1beta1conditions.MarkTrue(agentMachine, capiproviderv1.AgentReservedCondition)
 	return true
 }
 
 func (r *AgentMachineReconciler) setStatus(agentMachine *capiproviderv1.AgentMachine) error {
-	conditions.SetSummary(agentMachine,
-		conditions.WithConditions(capiproviderv1.AgentReservedCondition,
+	clusterv1beta1conditions.SetSummary(agentMachine,
+		clusterv1beta1conditions.WithConditions(capiproviderv1.AgentReservedCondition,
 			capiproviderv1.AgentSpecSyncedCondition,
 			capiproviderv1.AgentValidatedCondition,
 			capiproviderv1.AgentRequirementsMetCondition,
 			capiproviderv1.InstalledCondition,
 		),
-		conditions.WithStepCounterIf(agentMachine.ObjectMeta.DeletionTimestamp.IsZero()),
-		conditions.WithStepCounter())
+		clusterv1beta1conditions.WithStepCounterIf(agentMachine.ObjectMeta.DeletionTimestamp.IsZero()),
+		clusterv1beta1conditions.WithStepCounter())
 
-	agentMachine.Status.Ready, _ = strconv.ParseBool(string(conditions.Get(agentMachine, clusterv1.ReadyCondition).Status))
-
+	agentMachine.Status.Ready, _ = strconv.ParseBool(string(clusterv1beta1conditions.Get(agentMachine, clusterv1.ReadyCondition).Status))
 	return nil
 }
 
@@ -772,6 +801,7 @@ func (r *AgentMachineReconciler) mapAgentToAgentMachine(ctx context.Context, a c
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespace string) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("agentmachine-controller").
 		For(&capiproviderv1.AgentMachine{}).
 		Watches(&aiv1beta1.Agent{}, handler.EnqueueRequestsFromMapFunc(r.mapAgentToAgentMachine)).
 		Watches(&clusterv1.Machine{}, handler.EnqueueRequestsFromMapFunc(r.mapMachineToAgentMachine)).
