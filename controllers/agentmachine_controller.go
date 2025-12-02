@@ -801,6 +801,7 @@ func (r *AgentMachineReconciler) mapAgentToAgentMachine(ctx context.Context, a c
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespace string) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("agentmachine-controller").
 		For(&capiproviderv1.AgentMachine{}).
 		Watches(&aiv1beta1.Agent{}, handler.EnqueueRequestsFromMapFunc(r.mapAgentToAgentMachine)).
 		Watches(&clusterv1.Machine{}, handler.EnqueueRequestsFromMapFunc(r.mapMachineToAgentMachine)).
