@@ -373,6 +373,7 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(err).To(BeNil())
 			Expect(result).To(Equal(ctrl.Result{}))
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			agentCluster.SetGroupVersionKind(capiproviderv1.GroupVersion.WithKind("AgentCluster"))
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeTrue())
 		})
 		It("doesn't delete the cluster deployment when paused and agent cluster gets deleted", func() {

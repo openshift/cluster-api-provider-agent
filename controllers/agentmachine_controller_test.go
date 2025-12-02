@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	clusterutil "sigs.k8s.io/cluster-api/util"
 	clusterv1beta1conditions "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -205,6 +204,20 @@ func newAgentWithProperties(name, namespace string, approved, bound, validated, 
 	return agent
 }
 
+func getMachine(ctx context.Context, c client.Client, agentMachine *capiproviderv1.AgentMachine) (*clusterv1.Machine, error) {
+	for _, owner := range agentMachine.ObjectMeta.OwnerReferences {
+		if owner.Kind == "Machine" && owner.APIVersion == clusterv1.GroupVersion.String() {
+			machine := &clusterv1.Machine{}
+			err := c.Get(ctx, types.NamespacedName{Namespace: agentMachine.Namespace, Name: owner.Name}, machine)
+			if err != nil {
+				return nil, err
+			}
+			return machine, nil
+		}
+	}
+	return nil, nil
+}
+
 var _ = Describe("agentmachine reconcile", func() {
 	var (
 		c             client.Client
@@ -268,8 +281,9 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
 		Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeTrue())
-		machine, err := clusterutil.GetOwnerMachine(ctx, c, agentMachine.ObjectMeta)
+		machine, err := getMachine(ctx, c, agentMachine)
 		Expect(err).To(BeNil())
+		Expect(machine).To(Not(BeNil()))
 		_, haveMachineHookAnnotation := machine.GetAnnotations()[machineDeleteHookName]
 		Expect(haveMachineHookAnnotation).To(BeTrue())
 	})
