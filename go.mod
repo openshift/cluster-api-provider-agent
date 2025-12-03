@@ -25,7 +25,7 @@ require (
 	k8s.io/apimachinery v0.34.2
 	k8s.io/client-go v0.34.2
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	sigs.k8s.io/cluster-api v1.11.0
+	sigs.k8s.io/cluster-api v1.11.3
 	sigs.k8s.io/controller-runtime v0.22.4
 )
 
@@ -150,5 +150,5 @@ replace (
 	// This is from tag v0.26.openshift.1
 	golang.org/x/oauth2 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
 
-	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.0
+	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.3
 )
