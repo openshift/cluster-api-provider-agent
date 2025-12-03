@@ -2,7 +2,7 @@ module github.com/openshift/cluster-api-provider-agent/api
 
 go 1.24.0
 
-toolchain go1.24.2
+toolchain go1.25.5
 
 require (
 	github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094
