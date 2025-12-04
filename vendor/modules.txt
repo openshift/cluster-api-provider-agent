@@ -239,9 +239,12 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
-# github.com/openshift/api v0.0.0-20240830023148-b7d0481c9094
-## explicit; go 1.21
+# github.com/openshift/api v0.0.0-20250313134101-8a7efbfb5316
+## explicit; go 1.23.0
 github.com/openshift/api/config/v1
+github.com/openshift/api/machine/v1
+github.com/openshift/api/machine/v1beta1
+github.com/openshift/api/operator/v1
 # github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20251113114713-6130df70ee01
 ## explicit; go 1.21
 github.com/openshift/assisted-service/api/common
@@ -258,11 +261,10 @@ github.com/openshift/cluster-api-provider-agent/api/v1beta1
 # github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
 ## explicit; go 1.12
 github.com/openshift/custom-resource-status/conditions/v1
-# github.com/openshift/hive/apis v0.0.0-20231220215202-ad99b9e52d27
-## explicit; go 1.20
+# github.com/openshift/hive/apis v0.0.0-20251203224921-6aee2552b721
+## explicit; go 1.24.0
 github.com/openshift/hive/apis/hive/v1
 github.com/openshift/hive/apis/hive/v1/agent
-github.com/openshift/hive/apis/hive/v1/alibabacloud
 github.com/openshift/hive/apis/hive/v1/aws
 github.com/openshift/hive/apis/hive/v1/azure
 github.com/openshift/hive/apis/hive/v1/baremetal
@@ -270,8 +272,8 @@ github.com/openshift/hive/apis/hive/v1/gcp
 github.com/openshift/hive/apis/hive/v1/ibmcloud
 github.com/openshift/hive/apis/hive/v1/metricsconfig
 github.com/openshift/hive/apis/hive/v1/none
+github.com/openshift/hive/apis/hive/v1/nutanix
 github.com/openshift/hive/apis/hive/v1/openstack
-github.com/openshift/hive/apis/hive/v1/ovirt
 github.com/openshift/hive/apis/hive/v1/vsphere
 github.com/openshift/hive/apis/scheme
 # github.com/pkg/errors v0.9.1
