@@ -245,7 +245,7 @@ github.com/openshift/api/config/v1
 github.com/openshift/api/machine/v1
 github.com/openshift/api/machine/v1beta1
 github.com/openshift/api/operator/v1
-# github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20251113114713-6130df70ee01
+# github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20251205120948-bca003aaa047
 ## explicit; go 1.21
 github.com/openshift/assisted-service/api/common
 github.com/openshift/assisted-service/api/hiveextension/v1beta1
@@ -1015,7 +1015,7 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20251113114713-6130df70ee01
+# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20251205120948-bca003aaa047
 # github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20251205120948-bca003aaa047
 # github.com/openshift/cluster-api-provider-agent/api => ./api
 # golang.org/x/oauth2 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
