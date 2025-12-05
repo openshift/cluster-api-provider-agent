@@ -1,12 +1,12 @@
 # Build the manager binary
-FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.24 as builder
+FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.24@sha256:8412323224878c4e27cd6f7dc6ce99c50f878f37df323285bff29a53f8ec37cd as builder
 
 WORKDIR /workspace
 COPY . .
 # Build
 RUN CGO_ENABLED=1 go build -a -o manager main.go
 
-FROM registry.redhat.io/rhel9-6-els/rhel:9.6
+FROM registry.redhat.io/rhel9-6-els/rhel:9.6@sha256:1f440b43d698dca8f36747de27968ffcc68d768a59a9f2a3a3567652cdc5f4aa
 
 ARG version=2.11
 
