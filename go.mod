@@ -10,7 +10,7 @@ toolchain go1.24.2
 // github.com/go-logr/logr on v0.4.x
 // k8s.io/klog/v2 on v2.10.x
 require (
-	github.com/coreos/ignition/v2 v2.14.0
+	github.com/coreos/ignition/v2 v2.24.0
 	github.com/go-openapi/swag v0.25.3
 	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo v1.16.5
@@ -43,7 +43,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
-	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/coreos/go-systemd/v22 v22.6.0 // indirect
 	github.com/coreos/vcontext v0.0.0-20231102161604-685dc7299dc5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
