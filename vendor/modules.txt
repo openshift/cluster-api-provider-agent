@@ -207,17 +207,15 @@ github.com/openshift/api/config/v1
 github.com/openshift/api/machine/v1
 github.com/openshift/api/machine/v1beta1
 github.com/openshift/api/operator/v1
-# github.com/openshift/assisted-service v1.0.10-0.20250410153519-abd01432ec2c
-## explicit; go 1.21
-github.com/openshift/assisted-service/pkg/validations
-# github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20250402200652-1dc66326d304
+# github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20251019083200-33a19884b7a7
 ## explicit; go 1.21
 github.com/openshift/assisted-service/api/common
 github.com/openshift/assisted-service/api/hiveextension/v1beta1
 github.com/openshift/assisted-service/api/v1beta1
-# github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20250410153519-abd01432ec2c
+# github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20251019083200-33a19884b7a7
 ## explicit; go 1.21
 github.com/openshift/assisted-service/models
+github.com/openshift/assisted-service/models/validations
 # github.com/openshift/cluster-api-provider-agent/api v0.0.0-20250324094320-633957e81ebd => ./api
 ## explicit; go 1.24.0
 github.com/openshift/cluster-api-provider-agent/api/v1alpha1
@@ -364,6 +362,10 @@ golang.org/x/time/rate
 # gomodules.xyz/jsonpatch/v2 v2.5.0
 ## explicit; go 1.20
 gomodules.xyz/jsonpatch/v2
+# google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb
+## explicit; go 1.23.0
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb
+## explicit; go 1.23.0
 # google.golang.org/protobuf v1.36.5
 ## explicit; go 1.21
 google.golang.org/protobuf/encoding/protodelim
@@ -947,7 +949,7 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20250402200652-1dc66326d304
-# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20250410153519-abd01432ec2c
+# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20251019083200-33a19884b7a7
+# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20251019083200-33a19884b7a7
 # github.com/openshift/cluster-api-provider-agent/api => ./api
 # golang.org/x/oauth2 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d

@@ -78,7 +78,6 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/openshift/api v0.0.0-20250313134101-8a7efbfb5316 // indirect
-	github.com/openshift/assisted-service v1.0.10-0.20250410153519-abd01432ec2c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
@@ -100,6 +99,8 @@ require (
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
@@ -116,8 +117,8 @@ require (
 )
 
 replace (
-	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20250402200652-1dc66326d304
-	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20250410153519-abd01432ec2c
+	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20251019083200-33a19884b7a7
+	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20251019083200-33a19884b7a7
 	github.com/openshift/cluster-api-provider-agent/api => ./api
 
 	// CVE-2025-22868
