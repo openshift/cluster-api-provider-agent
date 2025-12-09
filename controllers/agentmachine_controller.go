@@ -614,7 +614,7 @@ func setConditionByAgentCondition(agentMachine *capiproviderv1.AgentMachine, age
 	if agentCondition.Type == aiv1beta1.InstalledCondition && agentCondition.Reason == aiv1beta1.InstallationFailedReason {
 		failSeverity = clusterv1.ConditionSeverityError
 	}
-	conditions.MarkFalse(agentMachine, agentMachineConditionType, agentCondition.Reason, failSeverity, agentCondition.Message)
+	conditions.MarkFalse(agentMachine, agentMachineConditionType, agentCondition.Reason, failSeverity, "%s", agentCondition.Message)
 	return false
 }
 
@@ -623,7 +623,7 @@ func setAgentReservedCondition(agentMachine *capiproviderv1.AgentMachine, err er
 		if err == nil {
 			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.NoSuitableAgentsReason, clusterv1.ConditionSeverityWarning, "")
 		} else {
-			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, err.Error())
+			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "%s", err.Error())
 		}
 		return false
 	}
