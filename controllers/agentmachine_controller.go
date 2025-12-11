@@ -773,6 +773,7 @@ func (r *AgentMachineReconciler) mapAgentToAgentMachine(ctx context.Context, a c
 func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespace string) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capiproviderv1.AgentMachine{}).
+		Named("agentmachine-controller").
 		Watches(&aiv1beta1.Agent{}, handler.EnqueueRequestsFromMapFunc(r.mapAgentToAgentMachine)).
 		Watches(&clusterv1.Machine{}, handler.EnqueueRequestsFromMapFunc(r.mapMachineToAgentMachine)).
 		Complete(r)
