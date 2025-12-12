@@ -148,7 +148,8 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// If the agentCluster has references a ClusterDeployment, sync from its status
-	return r.updateClusterStatus(ctx, log, agentCluster)
+	agentCluster.Status.Ready = true
+	return ctrl.Result{}, nil
 }
 
 func getNestedStringObject(log logrus.FieldLogger, obj *unstructured.Unstructured, baseFieldName string, fields ...string) (string, bool, error) {
@@ -399,22 +400,11 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 	return r.Client.Create(ctx, agentClusterInstall)
 }
 
-func (r *AgentClusterReconciler) updateClusterStatus(ctx context.Context, log logrus.FieldLogger, agentCluster *capiproviderv1.AgentCluster) (ctrl.Result, error) {
-	log.Infof("Updating agentCluster status according to %s", agentCluster.Status.ClusterDeploymentRef.Name)
-	// Once the cluster have clusterDeploymentRef and ClusterInstallRef we should set the status to Ready
-	agentCluster.Status.Ready = true
-	if err := r.Status().Update(ctx, agentCluster); err != nil {
-		log.WithError(err).Error("Failed to set ready status")
-		return ctrl.Result{}, err
-
-	}
-	return ctrl.Result{}, nil
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capiproviderv1.AgentCluster{}).
+		Named("agentcluster-controller").
 		Complete(r)
 }
 
