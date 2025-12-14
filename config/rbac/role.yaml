@@ -32,31 +32,6 @@ rules:
   - capi-provider.agent-install.openshift.io
   resources:
   - agentclusters
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - capi-provider.agent-install.openshift.io
-  resources:
-  - agentclusters/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - capi-provider.agent-install.openshift.io
-  resources:
-  - agentclusters/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - capi-provider.agent-install.openshift.io
-  resources:
   - agentmachines
   verbs:
   - create
@@ -69,12 +44,14 @@ rules:
 - apiGroups:
   - capi-provider.agent-install.openshift.io
   resources:
+  - agentclusters/finalizers
   - agentmachines/finalizers
   verbs:
   - update
 - apiGroups:
   - capi-provider.agent-install.openshift.io
   resources:
+  - agentclusters/status
   - agentmachines/status
   verbs:
   - get
@@ -84,13 +61,6 @@ rules:
   - cluster.x-k8s.io
   resources:
   - clusters
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - cluster.x-k8s.io
-  resources:
   - machines
   verbs:
   - get

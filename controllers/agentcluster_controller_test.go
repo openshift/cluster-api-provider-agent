@@ -334,6 +334,9 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeFalse())
 		})
 		It("recovers its cluster deployment when unpaused", func() {
+			// For this test the agent cluster needs to have a valid cluster deployment reference, otherwise
+			// the reconciliation will not orphan it. It also needs a valid control plane endpoint because
+			// that is verified by the reconciler.
 			agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
 			createClusterDeployment(c, ctx, agentCluster, clusterName, baseDomain, pullSecret)
 
@@ -359,9 +362,12 @@ var _ = Describe("agentcluster reconcile", func() {
 			Expect(err).To(BeNil())
 			Expect(result).To(Equal(ctrl.Result{}))
 			Expect(c.Get(ctx, types.NamespacedName{Name: agentCluster.Name, Namespace: testNamespace}, clusterDeployment)).To(Succeed())
+			agentCluster.SetGroupVersionKind(capiproviderv1.GroupVersion.WithKind("AgentCluster"))
 			Expect(clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)).To(BeTrue())
 		})
 		It("doesn't delete the cluster deployment when paused and agent cluster gets deleted", func() {
+			// For this test the agent cluster needs to have a valid cluster deployment reference, otherwise
+			// the reconciliation will not orphan it.
 			agentCluster := createDefaultResources(ctx, c, clusterName, testNamespace, baseDomain, pullSecret, kubeconfig, kubeadminPassword)
 			createClusterDeployment(c, ctx, agentCluster, clusterName, baseDomain, pullSecret)
 
