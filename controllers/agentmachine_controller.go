@@ -615,7 +615,7 @@ func setConditionByAgentCondition(agentMachine *capiproviderv1.AgentMachine, age
 	if agentCondition.Type == aiv1beta1.InstalledCondition && agentCondition.Reason == aiv1beta1.InstallationFailedReason {
 		failSeverity = clusterv1.ConditionSeverityError
 	}
-	conditions.MarkFalse(agentMachine, agentMachineConditionType, agentCondition.Reason, failSeverity, agentCondition.Message)
+	conditions.MarkFalse(agentMachine, agentMachineConditionType, agentCondition.Reason, failSeverity, "%s", agentCondition.Message)
 	return false
 }
 
@@ -624,7 +624,7 @@ func setAgentReservedCondition(agentMachine *capiproviderv1.AgentMachine, err er
 		if err == nil {
 			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.NoSuitableAgentsReason, clusterv1.ConditionSeverityWarning, "")
 		} else {
-			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, err.Error())
+			conditions.MarkFalse(agentMachine, capiproviderv1.AgentReservedCondition, capiproviderv1.AgentNotYetFoundReason, clusterv1.ConditionSeverityInfo, "%s", err.Error())
 		}
 		return false
 	}
@@ -774,6 +774,7 @@ func (r *AgentMachineReconciler) mapAgentToAgentMachine(ctx context.Context, a c
 func (r *AgentMachineReconciler) SetupWithManager(mgr ctrl.Manager, agentNamespace string) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capiproviderv1.AgentMachine{}).
+		Named("agentmachine-controller").
 		Watches(&aiv1beta1.Agent{}, handler.EnqueueRequestsFromMapFunc(r.mapAgentToAgentMachine)).
 		Watches(&clusterv1.Machine{}, handler.EnqueueRequestsFromMapFunc(r.mapMachineToAgentMachine)).
 		Complete(r)
