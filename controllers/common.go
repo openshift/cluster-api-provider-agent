@@ -52,6 +52,15 @@ func ensureSecretLabel(ctx context.Context, c client.Client, secret *corev1.Secr
 	return nil
 }
 
+func ensureBackupLabel(obj *metav1.ObjectMeta) {
+	if obj == nil {
+		return
+	}
+	if !metav1.HasLabel(*obj, BackupLabel) {
+		metav1.SetMetaDataLabel(obj, BackupLabel, BackupLabelValue)
+	}
+}
+
 func GetKubeClientSchemes(schemes *runtime.Scheme) *runtime.Scheme {
 	utilruntime.Must(scheme.AddToScheme(schemes))
 	utilruntime.Must(corev1.AddToScheme(schemes))

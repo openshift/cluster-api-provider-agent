@@ -122,6 +122,9 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
+	// Set backup label on the agentCluster
+	ensureBackupLabel(&agentCluster.ObjectMeta)
+
 	// If the agentCluster has no reference to a ClusterDeployment, find or create one
 	if agentCluster.Status.ClusterDeploymentRef.Name == "" {
 		return r.findOrCreateClusterDeployment(ctx, log, agentCluster)

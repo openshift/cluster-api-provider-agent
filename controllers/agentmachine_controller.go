@@ -134,6 +134,9 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
+	// Set backup label on the agentMachine
+	ensureBackupLabel(&agentMachine.ObjectMeta)
+
 	machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, err := r.processBootstrapDataSecret(ctx, log, machine, agentMachine.Status.Ready)
 	if err != nil {
 		return ctrl.Result{}, err
