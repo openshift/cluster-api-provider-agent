@@ -11,7 +11,8 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:6fc28bcb6776e387d
 ARG version=2.11
 
 LABEL \
-    name="cluster-api-provider-agent" \
+    name="multicluster-engine/cluster-api-provider-agent-rhel9" \
+    cpe="cpe:/a:redhat:multicluster_engine:2.11::el9" \
     com.redhat.component="cluster-api-provider-agent" \
     description="Kubernetes-native declarative infrastructure for agent-based installation. \
     cluster-api-provider-agent serves as infrastructure provider for Kubernetes cluster-api." \
