@@ -1,6 +1,6 @@
 module github.com/openshift/cluster-api-provider-agent
 
-go 1.24.6
+go 1.24.11
 
 // Versions to be held for v1beta1
 // sigs.k8s.io/controller-runtime on v0.11.x
