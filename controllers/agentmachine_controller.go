@@ -34,6 +34,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/thoas/go-funk"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -67,6 +68,12 @@ type AgentMachineReconciler struct {
 	Log         logrus.FieldLogger
 	AgentClient client.Client
 	APIReader   client.Reader
+}
+
+type BootstrapData struct {
+	machineConfigPool           string
+	ignitionTokenSecretRef      *aiv1beta1.IgnitionEndpointTokenReference
+	ignitionEndpointHTTPHeaders map[string]string
 }
 
 //+kubebuilder:rbac:groups=capi-provider.agent-install.openshift.io,resources=agentmachines,verbs=get;list;watch;create;update;patch;delete
@@ -132,7 +139,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, err := r.processBootstrapDataSecret(ctx, log, machine, agentMachine.Status.Ready)
+	bootstrapData, err := r.processBootstrapDataSecret(ctx, log, machine)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -156,15 +163,49 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// If the AgentMachine doesn't have an agent, find one and set the agentRef
 	if agentMachine.Status.AgentRef == nil {
 		var foundAgent *aiv1beta1.Agent
-		foundAgent, err = r.findAgent(ctx, log, agentMachine, agentCluster.Status.ClusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders)
+		foundAgent, err = r.findAgent(ctx, log, agentMachine, agentCluster.Status.ClusterDeploymentRef, bootstrapData)
 		if foundAgent == nil || err != nil {
 			return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, err)
 		}
 		r.updateAgentMachineWithFoundAgent(log, agentMachine, foundAgent)
 	}
-
-	// If the AgentMachine has an agent, check its conditions and update ready/error
+	err = r.updateAgentIfNeeded(ctx, log, agentMachine, bootstrapData)
+	if err != nil {
+		log.WithError(err).Errorf("failed to update agent %s/%s for agent machine %s/%s", agentMachine.Status.AgentRef.Namespace, agentMachine.Status.AgentRef.Name, agentMachine.Name, agentMachine.Namespace)
+		return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, err)
+	}
 	return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, nil)
+}
+
+func (r *AgentMachineReconciler) updateAgentIfNeeded(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine, bootstrapData *BootstrapData) error {
+	agent, err := r.getAgent(ctx, log, agentMachine)
+	if err != nil {
+		return err
+	}
+
+	if agent == nil {
+		return fmt.Errorf("agent %s/%s not found", agentMachine.Status.AgentRef.Namespace, agentMachine.Status.AgentRef.Name)
+	}
+
+	// Create a desired spec with the bootstrap data
+	desired := &aiv1beta1.AgentSpec{
+		MachineConfigPool:              bootstrapData.machineConfigPool,
+		IgnitionEndpointTokenReference: bootstrapData.ignitionTokenSecretRef,
+		IgnitionEndpointHTTPHeaders:    bootstrapData.ignitionEndpointHTTPHeaders,
+	}
+
+	// Check if the agent spec needs to be updated
+	if !apiequality.Semantic.DeepDerivative(*desired, agent.Spec) {
+		log.Infof("Updating agent %s/%s because of bootstrap data changes", agent.Namespace, agent.Name)
+		agent.Spec.MachineConfigPool = bootstrapData.machineConfigPool
+		agent.Spec.IgnitionEndpointTokenReference = bootstrapData.ignitionTokenSecretRef
+		agent.Spec.IgnitionEndpointHTTPHeaders = bootstrapData.ignitionEndpointHTTPHeaders
+		if err := r.AgentClient.Update(ctx, agent); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *AgentMachineReconciler) removeFinalizer(agentMachine *capiproviderv1.AgentMachine) error {
@@ -319,8 +360,7 @@ func (r *AgentMachineReconciler) getAgentCluster(ctx context.Context, log logrus
 }
 
 func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.FieldLogger, agentMachine *capiproviderv1.AgentMachine,
-	clusterDeploymentRef capiproviderv1.ClusterDeploymentReference, machineConfigPool string,
-	ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference, ignitionEndpointHTTPHeaders map[string]string) (*aiv1beta1.Agent, error) {
+	clusterDeploymentRef capiproviderv1.ClusterDeploymentReference, bootstrapData *BootstrapData) (*aiv1beta1.Agent, error) {
 
 	// In the event this is a restored hub cluster, there will already be Agents
 	// that have been attached to this AgentMachine, so we want to reassociate them
@@ -358,7 +398,7 @@ func (r *AgentMachineReconciler) findAgent(ctx context.Context, log logrus.Field
 		if isValidAgent(&agents.Items[i]) {
 			foundAgent = &agents.Items[i]
 			log.Infof("Found agent to associate with AgentMachine: %s/%s", foundAgent.Namespace, foundAgent.Name)
-			err = r.updateFoundAgent(ctx, log, agentMachine, foundAgent, clusterDeploymentRef, machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders)
+			err = r.updateFoundAgent(ctx, log, agentMachine, foundAgent, clusterDeploymentRef, bootstrapData)
 			if err != nil {
 				// If we failed to update the agent then it might have already been taken, try the others
 				log.WithError(err).Infof("failed to update found agent, trying other agents")
@@ -415,8 +455,7 @@ func (r *AgentMachineReconciler) updateAgentMachineWithFoundAgent(log logrus.Fie
 
 func (r *AgentMachineReconciler) updateFoundAgent(ctx context.Context, log logrus.FieldLogger,
 	agentMachine *capiproviderv1.AgentMachine, agent *aiv1beta1.Agent,
-	clusterDeploymentRef capiproviderv1.ClusterDeploymentReference, machineConfigPool string,
-	ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference, ignitionEndpointHTTPHeaders map[string]string) error {
+	clusterDeploymentRef capiproviderv1.ClusterDeploymentReference, bootstrapData *BootstrapData) error {
 
 	log.Infof("Updating Agent %s/%s to be referenced by AgentMachine", agent.Namespace, agent.Name)
 	if agent.ObjectMeta.Labels == nil {
@@ -428,10 +467,9 @@ func (r *AgentMachineReconciler) updateFoundAgent(ctx context.Context, log logru
 	agent.ObjectMeta.Labels[AgentMachineRefLabelKey] = getAgentMachineRefLabel(agentMachine)
 	agent.ObjectMeta.Annotations[AgentMachineRefNamespace] = agentMachine.GetNamespace()
 	agent.Spec.ClusterDeploymentName = &aiv1beta1.ClusterReference{Namespace: clusterDeploymentRef.Namespace, Name: clusterDeploymentRef.Name}
-	agent.Spec.MachineConfigPool = machineConfigPool
-	agent.Spec.IgnitionEndpointTokenReference = ignitionTokenSecretRef
-	agent.Spec.IgnitionEndpointHTTPHeaders = ignitionEndpointHTTPHeaders
-
+	agent.Spec.MachineConfigPool = bootstrapData.machineConfigPool
+	agent.Spec.IgnitionEndpointTokenReference = bootstrapData.ignitionTokenSecretRef
+	agent.Spec.IgnitionEndpointHTTPHeaders = bootstrapData.ignitionEndpointHTTPHeaders
 	if err := r.AgentClient.Update(ctx, agent); err != nil {
 		log.WithError(err).Errorf("failed to update found Agent %s", agent.Name)
 		return err
@@ -439,16 +477,15 @@ func (r *AgentMachineReconciler) updateFoundAgent(ctx context.Context, log logru
 	return nil
 }
 
-func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context, log logrus.FieldLogger,
-	machine *clusterv1.Machine, agentMachineReady bool) (string, *aiv1beta1.IgnitionEndpointTokenReference, map[string]string, error) {
-
+func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context, log logrus.FieldLogger, machine *clusterv1.Machine) (*BootstrapData, error) {
+	processedData := &BootstrapData{}
 	machineConfigPool := ""
 	var ignitionTokenSecretRef *aiv1beta1.IgnitionEndpointTokenReference
 	ignitionEndpointHTTPHeaders := make(map[string]string)
 
 	if machine.Spec.Bootstrap.DataSecretName == nil {
-		log.Info("No data secret, continuing")
-		return machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, nil
+		log.Info("No data secret in Machine spec, continuing")
+		return processedData, nil
 	}
 
 	// For now we assume that if we have bootstrap data then it is an ignition config containing the ignition source and token.
@@ -456,7 +493,7 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	bootstrapDataSecretRef := types.NamespacedName{Namespace: machine.Namespace, Name: *machine.Spec.Bootstrap.DataSecretName}
 	if err := r.Get(ctx, bootstrapDataSecretRef, bootstrapDataSecret); err != nil {
 		log.WithError(err).Errorf("Failed to get user-data secret %s", *machine.Spec.Bootstrap.DataSecretName)
-		return machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, err
+		return processedData, err
 	}
 	if err := ensureSecretLabel(ctx, r.AgentClient, bootstrapDataSecret); err != nil {
 		log.WithError(err).Warnf("Failed to label secret %s/%s for backup", bootstrapDataSecret.Name, bootstrapDataSecret.Namespace)
@@ -465,31 +502,32 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	ignitionConfig := &ignitionapi.Config{}
 	if err := json.Unmarshal(bootstrapDataSecret.Data["value"], ignitionConfig); err != nil {
 		log.WithError(err).Errorf("Failed to unmarshal user-data secret %s", *machine.Spec.Bootstrap.DataSecretName)
-		return machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, err
+		return processedData, err
 	}
 
 	if len(ignitionConfig.Ignition.Config.Merge) != 1 {
 		log.Errorf("expected one ignition source in secret %s but found %d", *machine.Spec.Bootstrap.DataSecretName, len(ignitionConfig.Ignition.Config.Merge))
-		return machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, errors.New("did not find one ignition source as expected")
+		return processedData, errors.New("did not find one ignition source as expected")
 	}
 
 	ignitionSource := ignitionConfig.Ignition.Config.Merge[0]
 	machineConfigPool = (*ignitionSource.Source)[strings.LastIndex((*ignitionSource.Source), "/")+1:]
 
+	processedData.machineConfigPool = machineConfigPool
 	token := ""
 	for _, header := range ignitionSource.HTTPHeaders {
 		if header.Name == "Authorization" {
 			expectedPrefix := "Bearer "
 			if !strings.HasPrefix(*header.Value, expectedPrefix) {
 				log.Errorf("did not find expected prefix for bearer token in user-data secret %s", *machine.Spec.Bootstrap.DataSecretName)
-				return machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, errors.New("did not find expected prefix for bearer token")
+				return processedData, errors.New("did not find expected prefix for bearer token")
 			}
 			token = (*header.Value)[len(expectedPrefix):]
 		} else {
 			ignitionEndpointHTTPHeaders[header.Name] = *header.Value
 		}
-
 	}
+	processedData.ignitionEndpointHTTPHeaders = ignitionEndpointHTTPHeaders
 
 	ignitionTokenSecretName := fmt.Sprintf("agent-%s", *machine.Spec.Bootstrap.DataSecretName)
 	ignitionTokenSecret := &corev1.Secret{
@@ -504,11 +542,10 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 		Data: map[string][]byte{"ignition-token": []byte(token)},
 	}
 	ignitionTokenSecretRef = &aiv1beta1.IgnitionEndpointTokenReference{Namespace: machine.Namespace, Name: ignitionTokenSecretName}
+	processedData.ignitionTokenSecretRef = ignitionTokenSecretRef
+
 	// TODO: Use a dedicated secret per host and Delete the secret upon cleanup,
 	err := r.Client.Create(ctx, ignitionTokenSecret)
-	if err == nil && agentMachineReady {
-		log.Warnf("ignition token secret %s should not be deleted", ignitionTokenSecret)
-	}
 	if apierrors.IsAlreadyExists(err) {
 		log.Infof("ignitionTokenSecret %s already exists, updating secret content",
 			fmt.Sprintf("agent-%s", *machine.Spec.Bootstrap.DataSecretName))
@@ -516,10 +553,10 @@ func (r *AgentMachineReconciler) processBootstrapDataSecret(ctx context.Context,
 	}
 	if err != nil {
 		log.WithError(err).Error("Failed to create ignitionTokenSecret")
-		return machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, err
+		return processedData, err
 	}
 
-	return machineConfigPool, ignitionTokenSecretRef, ignitionEndpointHTTPHeaders, nil
+	return processedData, nil
 }
 
 // An Agent is considered valid only if it meets all of the following:
