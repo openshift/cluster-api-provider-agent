@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM registry.access.redhat.com/ubi9/go-toolset:1.24 AS builder
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.24-openshift-4.21 AS builder
 
 USER 0
 
