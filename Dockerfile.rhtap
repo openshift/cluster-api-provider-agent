@@ -8,11 +8,11 @@ RUN CGO_ENABLED=1 go build -a -o manager main.go
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:6fc28bcb6776e387d7a35a2056d9d2b985dc4e26031e98a2bd35a7137cd6fd71
 
-ARG version=2.11
+ARG version=2.17
 
 LABEL \
     name="multicluster-engine/cluster-api-provider-agent-rhel9" \
-    cpe="cpe:/a:redhat:multicluster_engine:2.11::el9" \
+    cpe="cpe:/a:redhat:multicluster_engine:2.17::el9" \
     com.redhat.component="cluster-api-provider-agent" \
     description="Kubernetes-native declarative infrastructure for agent-based installation. \
     cluster-api-provider-agent serves as infrastructure provider for Kubernetes cluster-api." \
