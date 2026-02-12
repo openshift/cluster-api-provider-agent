@@ -11,7 +11,7 @@ require (
 	github.com/coreos/ignition/v2 v2.14.0
 	github.com/go-openapi/swag v0.25.3
 	github.com/golang/mock v1.6.0
-	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.38.2
 	github.com/openshift/cluster-api-provider-agent/api v0.0.0-20251202202927-3ad4558809a2
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
