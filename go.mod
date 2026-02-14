@@ -1,6 +1,6 @@
 module github.com/openshift/cluster-api-provider-agent
 
-go 1.25
+go 1.25.0
 
 // Versions to be held for v1beta1
 // sigs.k8s.io/controller-runtime on v0.11.x
@@ -79,6 +79,8 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
 	github.com/itchyny/gojq v0.12.8 // indirect
 	github.com/itchyny/timefmt-go v0.1.3 // indirect
+	github.com/jackc/pgio v1.0.0 // indirect
+	github.com/jackc/pgtype v1.14.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -142,7 +144,7 @@ require (
 
 replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20251209011235-28a9e58dea34
-	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20251208131030-ae39457e926d
+	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260213213212-e6f7ff103a52
 	github.com/openshift/cluster-api-provider-agent/api => ./api
 	// CVE-2025-22868
 	// This is from tag v0.26.openshift.1
