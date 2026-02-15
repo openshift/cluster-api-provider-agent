@@ -60,6 +60,20 @@
             "release-ocm-2.15"
         ],
         "enabled": false
+      },
+      {
+        "matchManagers": [
+          "gomod"
+        ],
+        "matchPackageNames": [
+          "github.com/openshift/hive/apis"
+        ],
+        "groupName": "Hive API Synchronization",
+        "addLabels": [
+          "hive-api",
+          "api-sync"
+        ],
+        "enabled": true
       }
     ],
     "postUpdateOptions": [
