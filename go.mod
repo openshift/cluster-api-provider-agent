@@ -144,9 +144,5 @@ replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20251209011235-28a9e58dea34
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20251208131030-ae39457e926d
 	github.com/openshift/cluster-api-provider-agent/api => ./api
-	// CVE-2025-22868
-	// This is from tag v0.26.openshift.1
-	golang.org/x/oauth2 => github.com/openshift/golang-oauth2 v0.26.1-0.20250310184649-06a918c6239d
-
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.0
 )
