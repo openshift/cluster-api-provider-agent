@@ -1,6 +1,6 @@
 module github.com/openshift/cluster-api-provider-agent
 
-go 1.25
+go 1.25.0
 
 // Versions to be held for v1beta1
 // sigs.k8s.io/controller-runtime on v0.11.x
@@ -141,7 +141,7 @@ require (
 )
 
 replace (
-	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20251209011235-28a9e58dea34
+	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260219193437-b80492b121f2
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20251208131030-ae39457e926d
 	github.com/openshift/cluster-api-provider-agent/api => ./api
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.0
