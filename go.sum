@@ -366,8 +366,8 @@ github.com/openshift/assisted-service/models v0.0.0-20251208131030-ae39457e926d 
 github.com/openshift/assisted-service/models v0.0.0-20251208131030-ae39457e926d/go.mod h1:5EkIueBSaLnt64HR8drgSewdm+GeuE7W5mr9pa2JXXk=
 github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 h1:cHyxR+Y8rAMT6m1jQCaYGRwikqahI0OjjUDhFNf3ySQ=
 github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87/go.mod h1:DB/Mf2oTeiAmVVX1gN+NEqweonAPY0TKUwADizj8+ZA=
-github.com/openshift/hive/apis v0.0.0-20260127213836-e33d70397d57 h1:Jk9HVqFTkNNxCB4gaCMaDH4bAYsPuFTwbiPGJy2bKg4=
-github.com/openshift/hive/apis v0.0.0-20260127213836-e33d70397d57/go.mod h1:20tnfMYPSXqVDypUaO2vmxOtFzWj5l2KdZ+zYENpycI=
+github.com/openshift/hive/apis v0.0.0-20260219202727-a80802fdca76 h1:w2BHYdsXfgw3l3TtLdv3+kggQ2xMmm2gQbsQaS9syKg=
+github.com/openshift/hive/apis v0.0.0-20260219202727-a80802fdca76/go.mod h1:RV5orOtS1RVpnfOgITPjK+DKApvG2fevGEFzKikPhiY=
 github.com/pin/tftp v2.1.0+incompatible/go.mod h1:xVpZOMCXTy+A5QMjEVN0Glwa1sUvaJhFXbr/aAxuxGY=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
