@@ -19,12 +19,12 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.4
 	github.com/thoas/go-funk v0.9.3
-	k8s.io/api v0.34.2
-	k8s.io/apimachinery v0.34.2
-	k8s.io/client-go v0.34.2
+	k8s.io/api v0.34.3
+	k8s.io/apimachinery v0.34.3
+	k8s.io/client-go v0.34.3
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	sigs.k8s.io/cluster-api v1.11.0
-	sigs.k8s.io/controller-runtime v0.22.4
+	sigs.k8s.io/cluster-api v1.12.3
+	sigs.k8s.io/controller-runtime v0.22.5
 )
 
 require (
@@ -97,8 +97,6 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.4 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
-	github.com/spf13/cast v1.10.0 // indirect
-	github.com/spf13/cobra v1.10.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
@@ -125,8 +123,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gorm.io/gorm v1.25.8 // indirect
-	k8s.io/apiextensions-apiserver v0.34.2 // indirect
-	k8s.io/cluster-bootstrap v0.34.2 // indirect
+	k8s.io/apiextensions-apiserver v0.34.3 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20251125145642-4e65d59e963e // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.34.0 // indirect
@@ -140,5 +137,5 @@ replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260223145238-10cee3a746b9
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260223145238-10cee3a746b9
 	github.com/openshift/cluster-api-provider-agent/api => ./api
-	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.0
+	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.12.3
 )
