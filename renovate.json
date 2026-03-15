@@ -83,8 +83,10 @@
             "registry.access.redhat.com/ubi9/ubi-minimal"
         ],
         "groupName": "UBI Runtime Images",
-        "addLabels": [
-            "ubi"
+        "labels": [
+            "ubi",
+            "lgtm",
+            "approved"
         ]
       },
       {
@@ -107,7 +109,7 @@
           "github.com/openshift/hive/apis"
         ],
         "groupName": "Hive API Synchronization",
-        "addLabels": [
+        "labels": [
           "hive-api",
           "api-sync"
         ],
