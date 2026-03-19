@@ -84,7 +84,9 @@
         ],
         "groupName": "UBI Runtime Images",
         "addLabels": [
-            "ubi"
+            "ubi",
+            "lgtm",
+            "approved"
         ]
       },
       {
@@ -109,7 +111,9 @@
         "groupName": "Hive API Synchronization",
         "addLabels": [
           "hive-api",
-          "api-sync"
+          "api-sync",
+          "lgtm",
+          "approved"
         ],
         "enabled": true
       }
