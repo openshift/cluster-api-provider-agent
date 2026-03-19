@@ -4,6 +4,10 @@
     "commitMessagePrefix": "NO-ISSUE: ",
     "prHourlyLimit": 0,
     "prConcurrentLimit": 20,
+    "labels": [
+        "lgtm",
+        "approved"
+    ],
     "vulnerabilityAlerts": {
       "enabled": true
     },
@@ -83,10 +87,8 @@
             "registry.access.redhat.com/ubi9/ubi-minimal"
         ],
         "groupName": "UBI Runtime Images",
-        "labels": [
-            "ubi",
-            "lgtm",
-            "approved"
+        "addLabels": [
+            "ubi"
         ]
       },
       {
@@ -109,7 +111,7 @@
           "github.com/openshift/hive/apis"
         ],
         "groupName": "Hive API Synchronization",
-        "labels": [
+        "addLabels": [
           "hive-api",
           "api-sync"
         ],
