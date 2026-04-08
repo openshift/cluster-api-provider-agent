@@ -77,8 +77,6 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
-	github.com/itchyny/gojq v0.12.8 // indirect
-	github.com/itchyny/timefmt-go v0.1.3 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgtype v1.14.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
@@ -137,7 +135,7 @@ require (
 )
 
 replace (
-	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260322122346-7de1aab139a0
+	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260408081236-e807c36156f2
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260408081236-e807c36156f2
 	github.com/openshift/cluster-api-provider-agent/api => ./api
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.0

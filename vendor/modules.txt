@@ -163,12 +163,6 @@ github.com/google/go-cmp/cmp/internal/value
 github.com/google/uuid
 # github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3
 ## explicit; go 1.24.0
-# github.com/itchyny/gojq v0.12.8
-## explicit; go 1.16
-github.com/itchyny/gojq
-# github.com/itchyny/timefmt-go v0.1.3
-## explicit; go 1.14
-github.com/itchyny/timefmt-go
 # github.com/jackc/pgio v1.0.0
 ## explicit; go 1.12
 github.com/jackc/pgio
@@ -252,7 +246,7 @@ github.com/openshift/api/config/v1
 github.com/openshift/api/machine/v1
 github.com/openshift/api/machine/v1beta1
 github.com/openshift/api/operator/v1
-# github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20260322122346-7de1aab139a0
+# github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20260408081236-e807c36156f2
 ## explicit; go 1.25.0
 github.com/openshift/assisted-service/api/common
 github.com/openshift/assisted-service/api/hiveextension/v1beta1
@@ -1010,7 +1004,7 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260322122346-7de1aab139a0
+# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260408081236-e807c36156f2
 # github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260408081236-e807c36156f2
 # github.com/openshift/cluster-api-provider-agent/api => ./api
 # sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.0
