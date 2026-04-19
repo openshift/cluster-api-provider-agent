@@ -251,7 +251,7 @@ github.com/openshift/api/operator/v1
 github.com/openshift/assisted-service/api/common
 github.com/openshift/assisted-service/api/hiveextension/v1beta1
 github.com/openshift/assisted-service/api/v1beta1
-# github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20260408081236-e807c36156f2
+# github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20260419130423-5f9b42b177da
 ## explicit; go 1.25.0
 github.com/openshift/assisted-service/models
 github.com/openshift/assisted-service/models/validations
@@ -1005,6 +1005,6 @@ sigs.k8s.io/structured-merge-diff/v6/value
 ## explicit; go 1.22
 sigs.k8s.io/yaml
 # github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260408081236-e807c36156f2
-# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260408081236-e807c36156f2
+# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260419130423-5f9b42b177da
 # github.com/openshift/cluster-api-provider-agent/api => ./api
 # sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.0
