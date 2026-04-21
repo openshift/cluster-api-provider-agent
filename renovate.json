@@ -46,7 +46,8 @@
             "release-ocm-2.13",
             "release-ocm-2.14",
             "release-ocm-2.15",
-            "release-ocm-2.16"
+            "release-ocm-2.16",
+            "release-ocm-2.17"
           ],
           "matchManagers": [
             "gomod"
@@ -56,6 +57,19 @@
       ]
     },
     "packageRules": [
+      {
+        "matchManagers": ["custom.regex"],
+        "matchBaseBranches": [
+          "release-ocm-2.11",
+          "release-ocm-2.12",
+          "release-ocm-2.13",
+          "release-ocm-2.14",
+          "release-ocm-2.15",
+          "release-ocm-2.16",
+          "release-ocm-2.17"
+        ],
+        "enabled": false
+      },
       {
         "matchManagers": ["gomod"],
         "matchDepTypes": ["indirect"],
@@ -74,7 +88,8 @@
             "release-ocm-2.13",
             "release-ocm-2.14",
             "release-ocm-2.15",
-            "release-ocm-2.16"
+            "release-ocm-2.16",
+            "release-ocm-2.17"
         ],
         "enabled": false
       },
@@ -86,7 +101,8 @@
         "addLabels": [
             "ubi",
             "lgtm",
-            "approved"
+            "approved",
+            "ok-to-test"
         ]
       },
       {
@@ -113,9 +129,9 @@
           "hive-api",
           "api-sync",
           "lgtm",
-          "approved"
-        ],
-        "enabled": true
+          "approved",
+          "ok-to-test"
+        ]
       }
     ],
     "postUpdateOptions": [
