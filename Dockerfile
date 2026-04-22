@@ -11,7 +11,7 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
 # Extract the commit reference from which the image is built
 RUN git rev-parse --short HEAD > /commit-reference.txt
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:175bafd5bc7893540ed6234bb979acfe3574fd6570e6762bbc527c757f854cea
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:7d4e47500f28ac3a2bff06c25eff9127ff21048538ae03ce240d57cf756acd00
 
 # Copy the commit reference from the builder
 COPY --from=builder /commit-reference.txt /commit-reference.txt
