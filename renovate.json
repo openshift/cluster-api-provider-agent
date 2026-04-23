@@ -5,12 +5,16 @@
     "prHourlyLimit": 0,
     "prConcurrentLimit": 20,
     "vulnerabilityAlerts": {
-      "enabled": true
+        "enabled": true
     },
     "dockerfile": {
-      "fileMatch": ["Dockerfile.rhtap"],
-      "ignorePaths": ["**/Dockerfile"],
-      "pinDigests": true
+        "fileMatch": [
+            "Dockerfile.rhtap"
+        ],
+        "ignorePaths": [
+            "**/Dockerfile"
+        ],
+        "pinDigests": true
     },
     "customManagers": [
         {
@@ -31,94 +35,80 @@
         "dockerfile",
         "custom.regex"
     ],
-    "gomod": {
-      "packageRules": [
+    "packageRules": [
         {
-          "matchDepTypes": [
-            "indirect"
-          ],
-          "enabled": false
+            "matchManagers": ["custom.regex"],
+            "matchBaseBranches": [
+                "release-ocm-2.11",
+                "release-ocm-2.12",
+                "release-ocm-2.13",
+                "release-ocm-2.14",
+                "release-ocm-2.15",
+                "release-ocm-2.16",
+                "release-ocm-2.17"
+            ],
+            "enabled": false
         },
         {
-          "matchBaseBranches": [
-            "release-ocm-2.11",
-            "release-ocm-2.12",
-            "release-ocm-2.13",
-            "release-ocm-2.14",
-            "release-ocm-2.15",
-            "release-ocm-2.16"
-          ],
-          "matchManagers": [
-            "gomod"
-          ],
-          "enabled": false
+            "matchManagers": [
+                "gomod"
+            ],
+            "matchDepTypes": [
+                "indirect"
+            ],
+            "enabled": false
+        },
+        {
+            "matchManagers": [
+                "gomod"
+            ],
+            "matchBaseBranches": [
+                "master"
+            ],
+            "enabled": true
+        },
+        {
+            "matchManagers": [
+                "gomod"
+            ],
+            "matchBaseBranches": [
+                "release-ocm-2.11",
+                "release-ocm-2.12",
+                "release-ocm-2.13",
+                "release-ocm-2.14",
+                "release-ocm-2.15",
+                "release-ocm-2.16",
+                "release-ocm-2.17"
+            ],
+            "enabled": false
+        },
+        {
+            "matchPackageNames": [
+                "registry.access.redhat.com/ubi9/ubi-minimal"
+            ],
+            "groupName": "UBI Runtime Images",
+            "addLabels": [
+                "ubi",
+                "lgtm",
+                "approved",
+                "ok-to-test"
+            ]
+        },
+        {
+            "matchUpdateTypes": [
+                "major"
+            ],
+            "matchDatasources": [
+                "docker"
+            ],
+            "matchPackageNames": [
+                "registry.access.redhat.com/ubi9/ubi-minimal"
+            ],
+            "enabled": false
         }
-      ]
-    },
-    "packageRules": [
-      {
-        "matchManagers": ["gomod"],
-        "matchDepTypes": ["indirect"],
-        "enabled": false
-      },
-      {
-        "matchManagers": ["gomod"],
-        "matchBaseBranches": ["master"],
-        "enabled": true
-      },
-      {
-        "matchManagers": ["gomod"],
-        "matchBaseBranches": [
-            "release-ocm-2.11",
-            "release-ocm-2.12",
-            "release-ocm-2.13",
-            "release-ocm-2.14",
-            "release-ocm-2.15",
-            "release-ocm-2.16"
-        ],
-        "enabled": false
-      },
-      {
-        "matchPackageNames": [
-            "registry.access.redhat.com/ubi9/ubi-minimal"
-        ],
-        "groupName": "UBI Runtime Images",
-        "addLabels": [
-            "ubi",
-            "lgtm",
-            "approved"
-        ]
-      },
-      {
-        "matchUpdateTypes": [
-            "major"
-        ],
-        "matchDatasources": [
-            "docker"
-        ],
-        "matchPackageNames": [
-            "registry.access.redhat.com/ubi9/ubi-minimal"
-        ],
-        "enabled": false
-      },
-      {
-        "matchManagers": [
-          "gomod"
-        ],
-        "matchPackageNames": [
-          "github.com/openshift/hive/apis"
-        ],
-        "groupName": "Hive API Synchronization",
-        "addLabels": [
-          "hive-api",
-          "api-sync",
-          "lgtm",
-          "approved"
-        ],
-        "enabled": true
-      }
     ],
     "postUpdateOptions": [
-      "gomodTidy", "gomodVendor"
+        "gomodTidy",
+        "gomodVendor"
     ]
 }
