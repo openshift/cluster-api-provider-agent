@@ -128,7 +128,7 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
-	gorm.io/gorm v1.25.8 // indirect
+	gorm.io/gorm v1.31.1 // indirect
 	k8s.io/apiextensions-apiserver v0.34.2 // indirect
 	k8s.io/cluster-bootstrap v0.34.2 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
