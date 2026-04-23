@@ -364,10 +364,10 @@ golang.org/x/time/rate
 gomodules.xyz/jsonpatch/v2
 # google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb
 ## explicit; go 1.23.0
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb
-## explicit; go 1.23.0
-# google.golang.org/protobuf v1.36.5
-## explicit; go 1.21
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20260420184626-e10c466a9529
+## explicit; go 1.25.0
+# google.golang.org/protobuf v1.36.11
+## explicit; go 1.23
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
