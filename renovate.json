@@ -35,6 +35,19 @@
         "dockerfile",
         "custom.regex"
     ],
+    "gomod": {
+        "packageRules": [
+            {
+                "matchManagers": [
+                    "gomod"
+                ],
+                "matchDepTypes": [
+                    "indirect"
+                ],
+                "enabled": false
+            }
+        ]
+    },
     "packageRules": [
         {
             "matchManagers": ["custom.regex"],
@@ -63,15 +76,6 @@
                 "gomod"
             ],
             "matchBaseBranches": [
-                "master"
-            ],
-            "enabled": true
-        },
-        {
-            "matchManagers": [
-                "gomod"
-            ],
-            "matchBaseBranches": [
                 "release-ocm-2.11",
                 "release-ocm-2.12",
                 "release-ocm-2.13",
@@ -81,6 +85,18 @@
                 "release-ocm-2.17"
             ],
             "enabled": false
+        },
+        {
+            "matchManagers": [
+                "gomod"
+            ],
+            "matchDepTypes": [
+                "require"
+            ],
+            "matchBaseBranches": [
+                "master"
+            ],
+            "enabled": true
         },
         {
             "matchPackageNames": [
