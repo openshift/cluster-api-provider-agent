@@ -347,8 +347,8 @@ github.com/openshift/api v0.0.0-20251120220512-cb382c9eaf42 h1:Mo2FlDdoCZ+BE2W4C
 github.com/openshift/api v0.0.0-20251120220512-cb382c9eaf42/go.mod h1:d5uzF0YN2nQQFA0jIEWzzOZ+edmo6wzlGLvx5Fhz4uY=
 github.com/openshift/assisted-service/api v0.0.0-20260423203345-4a20feaf0742 h1:3vcvBiRAtXRTfmR9WEEJtZK5IoSE/l5dFpcJp/ac38M=
 github.com/openshift/assisted-service/api v0.0.0-20260423203345-4a20feaf0742/go.mod h1:EewzKkWGY2Li0irJQJjS48DsrVF+hPnyB8kgQ1eqkXA=
-github.com/openshift/assisted-service/models v0.0.0-20260408081236-e807c36156f2 h1:BVcCDC+FvxBgpXxJj2o/0t/sSNTLis9eaYv5YpQd0BY=
-github.com/openshift/assisted-service/models v0.0.0-20260408081236-e807c36156f2/go.mod h1:AIlSmaRbWvECCyZo+nuzkRijy7szsTxq+MrU9lmQRwo=
+github.com/openshift/assisted-service/models v0.0.0-20260423203345-4a20feaf0742 h1:iutktPJ/hR1DT27CDSXrjAc8BBzKlW94WMfeaW+ZdcA=
+github.com/openshift/assisted-service/models v0.0.0-20260423203345-4a20feaf0742/go.mod h1:AIlSmaRbWvECCyZo+nuzkRijy7szsTxq+MrU9lmQRwo=
 github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 h1:cHyxR+Y8rAMT6m1jQCaYGRwikqahI0OjjUDhFNf3ySQ=
 github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87/go.mod h1:DB/Mf2oTeiAmVVX1gN+NEqweonAPY0TKUwADizj8+ZA=
 github.com/openshift/hive/apis v0.0.0-20260422161834-b10cc0dc2b46 h1:ES9Lp++WUHu5y9n6DneYv+yPdepbSEtVlePF35pBQ4c=
