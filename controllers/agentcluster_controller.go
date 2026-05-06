@@ -34,12 +34,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -90,6 +92,14 @@ func (r *AgentClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.WithError(err).Errorf("Failed to get agentCluster %s", req.NamespacedName)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	// Client.Get() does not populate TypeMeta; set GVK from the scheme so code that uses
+	// APIVersion/Kind (e.g. orphanClusterDeployment) works. Same pattern as controllerutil.SetOwnerReference.
+	gvk, err := apiutil.GVKForObject(agentCluster, r.Scheme)
+	if err != nil {
+		r.Log.WithError(err).Warnf("Failed to get GVK for AgentCluster %s, using %s", agentCluster.Name, capiproviderv1.GroupVersion.WithKind("AgentCluster"))
+		gvk = capiproviderv1.GroupVersion.WithKind("AgentCluster")
+	}
+	agentCluster.SetGroupVersionKind(gvk)
 
 	patchHelper, err := patch.NewHelper(agentCluster, r.Client)
 	if err != nil {
@@ -349,7 +359,7 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 // ensureOwnedClusterDeployment makes sure that the ClusterDeployment has its owner set to this AgentCluster
 // and that the ClusterDeployment has a label referencing this AgentCluster.
 func (r *AgentClusterReconciler) ensureOwnedClusterDeployment(ctx context.Context, agentCluster *capiproviderv1.AgentCluster, clusterDeployment *hivev1.ClusterDeployment) error {
-	alreadyOwned := clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)
+	alreadyOwned := clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster, schema.GroupKind{Group: capiproviderv1.GroupVersion.Group, Kind: "AgentCluster"})
 	agentClusterRef := clusterDeployment.ObjectMeta.Labels[AgentClusterRefLabel]
 	if alreadyOwned && agentClusterRef != "" && agentClusterRef == agentCluster.Name {
 		r.Log.Infof("ClusterDeployment %s already owned by AgentCluster %s", clusterDeployment.Name, agentCluster.Name)
@@ -481,7 +491,8 @@ func (r *AgentClusterReconciler) orphanClusterDeployment(ctx context.Context, ag
 		return err
 	}
 
-	if !clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster) {
+	if !clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster, schema.GroupKind{Group: capiproviderv1.GroupVersion.Group, Kind: "AgentCluster"}) {
+		r.Log.Debugf("ClusterDeployment %s is not owned by AgentCluster %s", clusterDeployment.Name, agentCluster.Name)
 		return nil
 	}
 
