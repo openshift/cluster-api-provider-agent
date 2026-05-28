@@ -133,7 +133,7 @@ require (
 
 replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260519065949-c53dba61ec32
-	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260519145307-9f306c73663e
+	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260528155233-3b239e5acd50
 	github.com/openshift/cluster-api-provider-agent/api => ./api
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.0
 )
