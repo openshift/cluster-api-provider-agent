@@ -277,8 +277,8 @@ github.com/openshift/assisted-service/models v0.0.0-20260519145307-9f306c73663e 
 github.com/openshift/assisted-service/models v0.0.0-20260519145307-9f306c73663e/go.mod h1:pwTFVCr+vWs6mNylsIjFxJNZLewbNWYjtn/NikihH+U=
 github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 h1:cHyxR+Y8rAMT6m1jQCaYGRwikqahI0OjjUDhFNf3ySQ=
 github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87/go.mod h1:DB/Mf2oTeiAmVVX1gN+NEqweonAPY0TKUwADizj8+ZA=
-github.com/openshift/hive/apis v0.0.0-20260519181045-ab4b2490385a h1:wnrA+tLmKL2FoKDVU4qvUf4NWNj4lAYpGX6x9GWHKTQ=
-github.com/openshift/hive/apis v0.0.0-20260519181045-ab4b2490385a/go.mod h1:MtmVT975PDtheBqcskNDg5Gm3CKB10h41GkbTsZ4GgY=
+github.com/openshift/hive/apis v0.0.0-20260527211446-a455a02f440e h1:QB4oz3chckcAxLLd7Tx6HEJpJPHLDDJrqbTPR4sQ0cs=
+github.com/openshift/hive/apis v0.0.0-20260527211446-a455a02f440e/go.mod h1:MtmVT975PDtheBqcskNDg5Gm3CKB10h41GkbTsZ4GgY=
 github.com/openshift/installer v1.4.22-ec5 h1:NG9X2iZG5mbUVZIBhpMtMrGNK7Tbm9dDGAI6aXh/QZc=
 github.com/openshift/installer v1.4.22-ec5/go.mod h1:PbGvWlLRbmmSsaTQBAjhXPzliz9XJAYUdXcY0t/3UiY=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
