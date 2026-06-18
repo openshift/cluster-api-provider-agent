@@ -142,7 +142,7 @@ func newAgentMachine(name, namespace string, spec capiproviderv1.AgentMachineSpe
 	machine.ObjectMeta.Labels[clusterv1.ClusterNameLabel] = cluster.Name
 	Expect(c.Create(ctx, &machine)).To(BeNil())
 
-	machineOwnerRef := metav1.OwnerReference{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Machine", Name: machine.Name}
+	machineOwnerRef := metav1.OwnerReference{APIVersion: "cluster.x-k8s.io/v1beta2", Kind: "Machine", Name: machine.Name}
 	agentMachine := capiproviderv1.AgentMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,

@@ -61,13 +61,13 @@ func newCluster(namespacedName *types.NamespacedName) *clusterv1.Cluster {
 			Kind:       "HostedControlPlane",
 			Namespace:  namespacedName.Namespace,
 			Name:       namespacedName.Name,
-			APIVersion: schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
+			APIVersion: schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta2"}.String(),
 		},
 		InfrastructureRef: &corev1.ObjectReference{
 			Kind:       "AgentCluster",
 			Namespace:  namespacedName.Namespace,
 			Name:       namespacedName.Name,
-			APIVersion: schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
+			APIVersion: schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta2"}.String(),
 		},
 	}
 
@@ -89,7 +89,7 @@ func createControlPlane(namespacedName *types.NamespacedName, baseDomain, pullSe
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"kind":       "HostedControlPlane",
-			"apiVersion": schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta1"}.String(),
+			"apiVersion": schema.GroupVersion{Group: "cluster.x-k8s.io", Version: "v1beta2"}.String(),
 			"metadata": map[string]interface{}{
 				"name":      namespacedName.Name,
 				"namespace": namespacedName.Namespace,

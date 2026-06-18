@@ -35,7 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -177,7 +177,9 @@ func (r *AgentClusterReconciler) getCluster(ctx context.Context, agentCluster *c
 	cluster := &clusterv1.Cluster{}
 	if agentCluster.ObjectMeta.OwnerReferences != nil {
 		for _, owner := range agentCluster.ObjectMeta.OwnerReferences {
-			if owner.Kind == clusterv1.ClusterKind && owner.APIVersion == clusterv1.GroupVersion.String() {
+			// Support both v1beta1 and v1beta2 API versions for backward compatibility
+			if owner.Kind == clusterv1.ClusterKind &&
+				(owner.APIVersion == clusterv1.GroupVersion.String() || owner.APIVersion == "cluster.x-k8s.io/v1beta1") {
 				err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Namespace, Name: owner.Name}, cluster)
 				if err != nil {
 					return nil, err
