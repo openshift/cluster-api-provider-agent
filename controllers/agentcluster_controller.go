@@ -35,7 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterutilv1 "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -177,7 +177,9 @@ func (r *AgentClusterReconciler) getCluster(ctx context.Context, agentCluster *c
 	cluster := &clusterv1.Cluster{}
 	if agentCluster.ObjectMeta.OwnerReferences != nil {
 		for _, owner := range agentCluster.ObjectMeta.OwnerReferences {
-			if owner.Kind == clusterv1.ClusterKind && owner.APIVersion == clusterv1.GroupVersion.String() {
+			// Support both v1beta1 and v1beta2 API versions for backward compatibility
+			if owner.Kind == clusterv1.ClusterKind &&
+				(owner.APIVersion == clusterv1.GroupVersion.String() || owner.APIVersion == "cluster.x-k8s.io/v1beta1") {
 				err := r.Get(ctx, types.NamespacedName{Namespace: agentCluster.Namespace, Name: owner.Name}, cluster)
 				if err != nil {
 					return nil, err
@@ -203,14 +205,29 @@ func (r *AgentClusterReconciler) getControlPlane(ctx context.Context, log logrus
 		return nil, nil
 	}
 
-	if cluster.Spec.ControlPlaneRef == nil {
+	if !cluster.Spec.ControlPlaneRef.IsDefined() {
 		log.Info("Waiting for Cluster to have OwnerRef on Control Plane for AgentCluster %s %s", agentCluster.Name, agentCluster.Namespace)
 		return nil, nil
 	}
 
-	obj := clusterutilv1.ObjectReferenceToUnstructured(*cluster.Spec.ControlPlaneRef)
+	// Convert ContractVersionedObjectReference to unstructured
+	// The ContractVersionedObjectReference doesn't include version, so we try common versions
+	// Try v1beta1 first (common for hypershift.openshift.io), then v1beta2 (for cluster.x-k8s.io)
+	obj := &unstructured.Unstructured{}
+	obj.SetKind(cluster.Spec.ControlPlaneRef.Kind)
+	obj.SetName(cluster.Spec.ControlPlaneRef.Name)
+	obj.SetNamespace(cluster.Namespace)
 	key := client.ObjectKey{Name: obj.GetName(), Namespace: obj.GetNamespace()}
-	if err = r.Client.Get(ctx, key, obj); err != nil {
+
+	// Try v1beta1 first
+	obj.SetAPIVersion(cluster.Spec.ControlPlaneRef.APIGroup + "/v1beta1")
+	err = r.Client.Get(ctx, key, obj)
+	if err != nil && apierrors.IsNotFound(err) {
+		// Try v1beta2 as fallback
+		obj.SetAPIVersion(cluster.Spec.ControlPlaneRef.APIGroup + "/v1beta2")
+		err = r.Client.Get(ctx, key, obj)
+	}
+	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve %s external object %q/%q", obj.GetKind(), key.Namespace, key.Name)
 	}
 
