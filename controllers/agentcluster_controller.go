@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-openapi/swag"
@@ -422,18 +421,17 @@ func (r *AgentClusterReconciler) createAgentClusterInstall(ctx context.Context, 
 
 	// IgnitionEndpoint can only be set at AgentClusterInstall create time
 	if agentCluster.Spec.IgnitionEndpoint != nil {
-		url := agentCluster.Spec.IgnitionEndpoint.Url
-		agentClusterInstall.Spec.IgnitionEndpoint = &hiveext.IgnitionEndpoint{
-			// Currently assume something like https://1.2.3.4:555/ignition, otherwise this will fail
-			// TODO: Replace with something more robust
-			Url: url[0:strings.LastIndex(url, "/")],
-		}
-		if agentCluster.Spec.IgnitionEndpoint.CaCertificateReference != nil {
-			agentClusterInstall.Spec.IgnitionEndpoint.CaCertificateReference = &hiveext.CaCertificateReference{
-				Namespace: agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Namespace,
-				Name:      agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Name,
+		if ignitionURL := ignitionEndpointURLForACI(agentCluster.Spec.IgnitionEndpoint.Url); ignitionURL != "" {
+			agentClusterInstall.Spec.IgnitionEndpoint = &hiveext.IgnitionEndpoint{
+				Url: ignitionURL,
 			}
-			r.ensureSecretLabel(ctx, agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Name, agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Namespace)
+			if agentCluster.Spec.IgnitionEndpoint.CaCertificateReference != nil {
+				agentClusterInstall.Spec.IgnitionEndpoint.CaCertificateReference = &hiveext.CaCertificateReference{
+					Namespace: agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Namespace,
+					Name:      agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Name,
+				}
+				r.ensureSecretLabel(ctx, agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Name, agentCluster.Spec.IgnitionEndpoint.CaCertificateReference.Namespace)
+			}
 		}
 	}
 
