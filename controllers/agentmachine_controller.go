@@ -284,26 +284,35 @@ func (r *AgentMachineReconciler) handleDeletionHook(ctx context.Context, log log
 		return &ctrl.Result{}, nil
 	}
 
-	// return if the machine is not waiting on this hook
-	// In v1beta2, use the V1Beta1Condition constant for backward compatibility
-	cond := conditions.Get(machine, string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition))
-	if cond == nil {
-		if !agentMachine.DeletionTimestamp.IsZero() {
-			log.Warnf("Not starting agent machine removal until machine %s/%s pauses for delete hook", machine.Namespace, machine.Name)
-		}
-		return nil, nil
+	// Check if the machine has reached the pre-terminate hook phase.
+	// In CAPI v1beta2, the Machine uses a "Deleting" condition with reason "WaitingForPreTerminateHook"
+	// instead of the separate v1beta1 "PreTerminateDeleteHookSucceeded" condition.
+	machineWaitingForHook := false
+	deletingCond := conditions.Get(machine, string(clusterv1.MachineDeletingCondition))
+	if deletingCond != nil && deletingCond.Reason == clusterv1.MachineDeletingWaitingForPreTerminateHookReason {
+		machineWaitingForHook = true
 	}
 
-	// If the hook was already processed and removed ensure the finalizer is removed and return
-	if cond.Status == metav1.ConditionTrue {
-		if removeFinalizerError := r.removeFinalizer(agentMachine); removeFinalizerError != nil {
-			log.Error(removeFinalizerError)
-			return &ctrl.Result{}, removeFinalizerError
+	// Fall back to checking the v1beta1 condition for backward compatibility
+	if !machineWaitingForHook {
+		v1beta1Cond := conditions.Get(machine, string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition))
+		if v1beta1Cond == nil {
+			if !agentMachine.DeletionTimestamp.IsZero() {
+				log.Warnf("Not starting agent machine removal until machine %s/%s pauses for delete hook", machine.Namespace, machine.Name)
+			}
+			return nil, nil
 		}
-		return &ctrl.Result{}, nil
+		// If the hook was already processed and removed ensure the finalizer is removed and return
+		if v1beta1Cond.Status == metav1.ConditionTrue {
+			if removeFinalizerError := r.removeFinalizer(agentMachine); removeFinalizerError != nil {
+				log.Error(removeFinalizerError)
+				return &ctrl.Result{}, removeFinalizerError
+			}
+			return &ctrl.Result{}, nil
+		}
 	}
 
-	log.Infof("Machine is waiting on delete hook %s", clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition)
+	log.Infof("Machine is waiting on delete hook, proceeding with agent cleanup")
 	if agentMachine.Status.AgentRef == nil {
 		log.Info("Removing machine delete hook annotation - agent ref is nil")
 		if removeHookAndFinalizerError := r.removeHookAndFinalizer(ctx, machine, agentMachine); removeHookAndFinalizerError != nil {
