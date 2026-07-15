@@ -25,8 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	"sigs.k8s.io/cluster-api/util/conditions"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1beta1conditions "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -118,13 +118,7 @@ func newAgentMachine(name, namespace string, spec capiproviderv1.AgentMachineSpe
 			Name:      fmt.Sprintf("cluster-%s", name),
 			Namespace: namespace,
 		},
-		Spec: clusterv1.ClusterSpec{
-			InfrastructureRef: clusterv1.ContractVersionedObjectReference{
-				APIGroup: "cluster.x-k8s.io",
-				Kind:     "AgentCluster",
-				Name:     agentCluster.Name,
-			},
-		},
+		Spec:   clusterv1.ClusterSpec{InfrastructureRef: &corev1.ObjectReference{Namespace: agentCluster.Namespace, Name: agentCluster.Name}},
 		Status: clusterv1.ClusterStatus{},
 	}
 	Expect(c.Create(ctx, &cluster)).To(BeNil())
@@ -148,7 +142,7 @@ func newAgentMachine(name, namespace string, spec capiproviderv1.AgentMachineSpe
 	machine.ObjectMeta.Labels[clusterv1.ClusterNameLabel] = cluster.Name
 	Expect(c.Create(ctx, &machine)).To(BeNil())
 
-	machineOwnerRef := metav1.OwnerReference{APIVersion: "cluster.x-k8s.io/v1beta2", Kind: "Machine", Name: machine.Name}
+	machineOwnerRef := metav1.OwnerReference{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Machine", Name: machine.Name}
 	agentMachine := capiproviderv1.AgentMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -218,7 +212,7 @@ func newAgentWithProperties(name, namespace string, approved, bound, validated, 
 
 func getMachine(ctx context.Context, c client.Client, agentMachine *capiproviderv1.AgentMachine) (*clusterv1.Machine, error) {
 	for _, owner := range agentMachine.ObjectMeta.OwnerReferences {
-		if owner.Kind == "Machine" && (owner.APIVersion == clusterv1.GroupVersion.String() || owner.APIVersion == "cluster.x-k8s.io/v1beta1") {
+		if owner.Kind == "Machine" && owner.APIVersion == clusterv1.GroupVersion.String() {
 			machine := &clusterv1.Machine{}
 			err := c.Get(ctx, types.NamespacedName{Namespace: agentMachine.Namespace, Name: owner.Name}, machine)
 			if err != nil {
@@ -278,32 +272,13 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(BeNil())
 		Expect(agentMachine.Status.Ready).To(BeEquivalentTo(true))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentReservedCondition)).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.InstalledCondition)).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, string(clusterv1.ReadyCondition)).Status).To(BeEquivalentTo("True"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("True"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("True"))
 	})
 
 	It("sets the finalizer and the machine delete hook annotation", func() {
 		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
-		Expect(c.Create(ctx, agentMachine)).To(Succeed())
-
-		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
-		Expect(err).To(BeNil())
-		Expect(result).To(Equal(ctrl.Result{}))
-
-		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-1"}, agentMachine)).To(Succeed())
-		Expect(controllerutil.ContainsFinalizer(agentMachine, AgentMachineFinalizerName)).To(BeTrue())
-		machine, err := getMachine(ctx, c, agentMachine)
-		Expect(err).To(BeNil())
-		Expect(machine).To(Not(BeNil()))
-		_, haveMachineHookAnnotation := machine.GetAnnotations()[machineDeleteHookName]
-		Expect(haveMachineHookAnnotation).To(BeTrue())
-	})
-
-	It("sets the finalizer and the machine delete hook annotation with legacy v1beta1 APIVersion", func() {
-		agentMachine, _ := newAgentMachine("agentMachine-1", testNamespace, capiproviderv1.AgentMachineSpec{}, ctx, c)
-		machineOwnerRef := metav1.OwnerReference{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Machine", Name: fmt.Sprintf("machine-%s", agentMachine.Name)}
-		agentMachine.ObjectMeta.OwnerReferences = []metav1.OwnerReference{machineOwnerRef}
 		Expect(c.Create(ctx, agentMachine)).To(Succeed())
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
@@ -334,14 +309,14 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(result).To(Equal(ctrl.Result{}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine-0"}, agentMachine)).To(BeNil())
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentReservedCondition)).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentReservedCondition)).Reason).To(Equal(capiproviderv1.NoSuitableAgentsReason))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentSpecSyncedCondition)).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentValidatedCondition)).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentRequirementsMetCondition)).Status).To(BeEquivalentTo("False"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.InstalledCondition)).Status).To(BeEquivalentTo("False"))
-		// Note: v1beta2 conditions don't have Severity field
-		Expect(conditions.Get(agentMachine, string(clusterv1.ReadyCondition)).Status).To(BeEquivalentTo("False"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("False"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Reason).To(Equal(capiproviderv1.NoSuitableAgentsReason))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("False"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentValidatedCondition).Status).To(BeEquivalentTo("False"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("False"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("False"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
+		Expect(clusterv1beta1conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("False"))
 	})
 
 	It("agentMachine find agent end-to-end", func() {
@@ -381,13 +356,13 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(result).To(Equal(ctrl.Result{}))
 
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: "agentMachine"}, agentMachine)).To(BeNil())
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentReservedCondition)).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentSpecSyncedCondition)).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentValidatedCondition)).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.AgentRequirementsMetCondition)).Status).To(BeEquivalentTo("True"))
-		Expect(conditions.Get(agentMachine, string(capiproviderv1.InstalledCondition)).Status).To(BeEquivalentTo("False"))
-		// Note: v1beta2 conditions don't have Severity field
-		Expect(conditions.Get(agentMachine, string(clusterv1.ReadyCondition)).Status).To(BeEquivalentTo("False"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentReservedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentSpecSyncedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentValidatedCondition).Status).To(BeEquivalentTo("True"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.AgentRequirementsMetCondition).Status).To(BeEquivalentTo("True"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Status).To(BeEquivalentTo("False"))
+		Expect(clusterv1beta1conditions.Get(agentMachine, capiproviderv1.InstalledCondition).Severity).To(BeEquivalentTo(clusterv1.ConditionSeverityInfo))
+		Expect(clusterv1beta1conditions.Get(agentMachine, clusterv1.ReadyCondition).Status).To(BeEquivalentTo("False"))
 
 		Expect(agentMachine.Status.AgentRef.Name).To(BeEquivalentTo("agent-10"))
 		Expect(len(agentMachine.Status.Addresses)).To(BeEquivalentTo(4))
@@ -435,12 +410,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 		// mark the machine for deletion
 		Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
-		conditions.Set(machine, metav1.Condition{
-			Type:    string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition),
-			Status:  metav1.ConditionFalse,
-			Reason:  string(clusterv1.WaitingExternalHookV1Beta1Reason),
-			Message: "",
-		})
+		clusterv1beta1conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
 		machine.Annotations[machineDeleteHookName] = ""
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
@@ -517,12 +487,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		agentMachine.Status.Ready = true
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-		conditions.Set(machine, metav1.Condition{
-			Type:    string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition),
-			Status:  metav1.ConditionFalse,
-			Reason:  string(clusterv1.WaitingExternalHookV1Beta1Reason),
-			Message: "",
-		})
+		clusterv1beta1conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
 		machine.Annotations[machineDeleteHookName] = ""
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
@@ -542,12 +507,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		agentMachine.Status.AgentRef = &capiproviderv1.AgentReference{Namespace: testNamespace, Name: "missingAgent"}
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-		conditions.Set(machine, metav1.Condition{
-			Type:    string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition),
-			Status:  metav1.ConditionFalse,
-			Reason:  string(clusterv1.WaitingExternalHookV1Beta1Reason),
-			Message: "",
-		})
+		clusterv1beta1conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
 		machine.Annotations[machineDeleteHookName] = ""
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
@@ -567,11 +527,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		agentMachine.Status.Ready = true
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-		conditions.Set(machine, metav1.Condition{
-			Type:   string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition),
-			Status: metav1.ConditionTrue,
-			Reason: "HookSucceeded",
-		})
+		clusterv1beta1conditions.MarkTrue(machine, clusterv1.PreTerminateDeleteHookSucceededCondition)
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
 		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
@@ -600,12 +556,7 @@ var _ = Describe("agentmachine reconcile", func() {
 		Expect(c.Create(ctx, agent)).To(BeNil())
 		Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-		conditions.Set(machine, metav1.Condition{
-			Type:    string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition),
-			Status:  metav1.ConditionFalse,
-			Reason:  string(clusterv1.WaitingExternalHookV1Beta1Reason),
-			Message: "",
-		})
+		clusterv1beta1conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
 		machine.Annotations[machineDeleteHookName] = ""
 		Expect(c.Update(ctx, machine)).To(BeNil())
 
@@ -637,12 +588,7 @@ var _ = Describe("agentmachine reconcile", func() {
 			Expect(c.Create(ctx, agent)).To(BeNil())
 			Expect(c.Create(ctx, agentMachine)).To(BeNil())
 
-			conditions.Set(machine, metav1.Condition{
-				Type:    string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition),
-				Status:  metav1.ConditionFalse,
-				Reason:  string(clusterv1.WaitingExternalHookV1Beta1Reason),
-				Message: "",
-			})
+			clusterv1beta1conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
 			machine.Annotations[machineDeleteHookName] = ""
 			Expect(c.Update(ctx, machine)).To(BeNil())
 		})
@@ -738,12 +684,7 @@ var _ = Describe("agentmachine reconcile", func() {
 
 			// mark the machine for deletion
 			Expect(c.Get(ctx, types.NamespacedName{Namespace: machine.Namespace, Name: machine.Name}, machine)).To(BeNil())
-			conditions.Set(machine, metav1.Condition{
-				Type:    string(clusterv1.PreTerminateDeleteHookSucceededV1Beta1Condition),
-				Status:  metav1.ConditionFalse,
-				Reason:  string(clusterv1.WaitingExternalHookV1Beta1Reason),
-				Message: "",
-			})
+			clusterv1beta1conditions.MarkFalse(machine, clusterv1.PreTerminateDeleteHookSucceededCondition, clusterv1.WaitingExternalHookReason, clusterv1.ConditionSeverityInfo, "")
 			machine.Annotations = map[string]string{machineDeleteHookName: ""}
 			Expect(c.Update(ctx, machine)).To(BeNil())
 
