@@ -50,7 +50,9 @@
     },
     "packageRules": [
         {
-            "matchManagers": ["custom.regex"],
+            "matchManagers": [
+                "custom.regex"
+            ],
             "matchBaseBranches": [
                 "release-ocm-2.11",
                 "release-ocm-2.12",
@@ -121,6 +123,23 @@
                 "registry.access.redhat.com/ubi9/ubi-minimal"
             ],
             "enabled": false
+        },
+        {
+            "matchManagers": [
+                "gomod"
+            ],
+            "matchPackageNames": [
+                "github.com/openshift/hive/apis"
+            ],
+            "groupName": "Hive API Synchronization",
+            "addLabels": [
+                "hive-api",
+                "api-sync",
+                "lgtm",
+                "approved",
+                "ok-to-test"
+            ],
+            "enabled": true
         }
     ],
     "postUpdateOptions": [
