@@ -161,7 +161,7 @@ func (r *AgentMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if agentCluster.Status.ClusterDeploymentRef.Name == "" {
 		err = fmt.Errorf("no cluster deployment reference on agentCluster %s", agentCluster.GetName())
 		log.Warning(err.Error())
-		return ctrl.Result{}, r.updateStatus(ctx, log, agentMachine, err)
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, r.updateStatus(ctx, log, agentMachine, err)
 	}
 
 	// If the AgentMachine doesn't have an agent, find one and set the agentRef

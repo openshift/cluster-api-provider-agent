@@ -756,6 +756,67 @@ var _ = Describe("agentmachine reconcile", func() {
 			Expect(agent.Spec.ClusterDeploymentName.Name).To(BeEquivalentTo("cluster-deployment-agentMachine-1"))
 		})
 	})
+	It("requeues with a delay when AgentCluster clusterDeploymentRef is not yet set", func() {
+		agentCluster := &capiproviderv1.AgentCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "agent-cluster-no-ref",
+				Namespace: testNamespace,
+			},
+			// Status.ClusterDeploymentRef intentionally left empty to simulate the race
+		}
+		Expect(c.Create(ctx, agentCluster)).To(Succeed())
+
+		cluster := &clusterv1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cluster-no-ref",
+				Namespace: testNamespace,
+			},
+			Spec: clusterv1.ClusterSpec{
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					APIGroup: "cluster.x-k8s.io",
+					Kind:     "AgentCluster",
+					Name:     agentCluster.Name,
+				},
+			},
+		}
+		Expect(c.Create(ctx, cluster)).To(Succeed())
+
+		secret := newDataSecret("no-ref", testNamespace, "https://endpoint/ignition", ctx, c)
+
+		machine := &clusterv1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "machine-no-ref",
+				Namespace:   testNamespace,
+				Labels:      map[string]string{clusterv1.ClusterNameLabel: cluster.Name},
+				Annotations: make(map[string]string),
+			},
+			Spec: clusterv1.MachineSpec{
+				Bootstrap: clusterv1.Bootstrap{
+					DataSecretName: swag.String(secret.Name),
+				},
+			},
+		}
+		Expect(c.Create(ctx, machine)).To(Succeed())
+
+		agentMachine := &capiproviderv1.AgentMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "agentmachine-no-ref",
+				Namespace: testNamespace,
+				OwnerReferences: []metav1.OwnerReference{
+					{APIVersion: "cluster.x-k8s.io/v1beta2", Kind: "Machine", Name: machine.Name},
+				},
+			},
+		}
+		Expect(c.Create(ctx, agentMachine)).To(Succeed())
+
+		result, err := amr.Reconcile(ctx, newAgentMachineRequest(agentMachine))
+		Expect(err).To(BeNil())
+		// The controller must requeue so it retries once the AgentCluster
+		// controller populates clusterDeploymentRef. Without a requeue the
+		// AgentMachine gets permanently stuck in AgentNotYetFound.
+		Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+	})
+
 	Context("reconciling ignition token secret", func() {
 		var (
 			agent        *aiv1beta1.Agent
