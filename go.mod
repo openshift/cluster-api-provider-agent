@@ -10,7 +10,7 @@ toolchain go1.26.2
 // github.com/go-logr/logr on v0.4.x
 // k8s.io/klog/v2 on v2.10.x
 require (
-	github.com/coreos/ignition/v2 v2.26.0
+	github.com/coreos/ignition/v2 v2.27.0
 	github.com/go-openapi/swag v0.25.4
 	github.com/golang/mock v1.7.0-rc.1
 	github.com/onsi/ginkgo v1.16.5
