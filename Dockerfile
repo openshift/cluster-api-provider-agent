@@ -13,6 +13,10 @@ RUN git rev-parse --short HEAD > /commit-reference.txt
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:b9b10f42d7eba7ad4a6d5ef26b7d34fdc892b2ffe59b8d0372ec884008569eb6
 
+RUN microdnf install -y --disablerepo="*" --enablerepo="ubi-9-*" crypto-policies-scripts && \
+    update-crypto-policies --set DEFAULT:PQ && \
+    microdnf clean all
+
 # Copy the commit reference from the builder
 COPY --from=builder /commit-reference.txt /commit-reference.txt
 
