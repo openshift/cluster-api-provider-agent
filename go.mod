@@ -14,7 +14,7 @@ require (
 	github.com/go-openapi/swag v0.25.4
 	github.com/golang/mock v1.7.0-rc.1
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.42.0
+	github.com/onsi/gomega v1.43.0
 	github.com/openshift/cluster-api-provider-agent/api v0.0.0-20251202202927-3ad4558809a2
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
 	github.com/openshift/hive/apis v0.0.0-20260827190012-5068da00bed7
