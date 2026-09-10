@@ -6,7 +6,7 @@ COPY . .
 # Build
 RUN CGO_ENABLED=1 go build -a -o manager main.go
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:24650313873554b6ba16c1a1b6b9f9142604f6ab735113e1695faf2dd07fdede
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:d235f607e1d6d833f031db107dc42206e4dd4d5aa9142c43d3771fb7f9bea76a
 
 ARG version=2.11
 
