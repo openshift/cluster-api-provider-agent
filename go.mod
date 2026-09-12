@@ -25,7 +25,7 @@ require (
 	k8s.io/apimachinery v0.35.4
 	k8s.io/client-go v0.35.1
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
-	sigs.k8s.io/cluster-api v1.11.2
+	sigs.k8s.io/cluster-api v1.14.2
 	sigs.k8s.io/controller-runtime v0.22.4
 )
 
@@ -137,5 +137,5 @@ replace (
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260709161602-ad9783f44c2b
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260709161602-ad9783f44c2b
 	github.com/openshift/cluster-api-provider-agent/api => ./api
-	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.0
+	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.14.2
 )
