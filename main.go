@@ -56,6 +56,8 @@ func main() {
 	var probeAddr string
 	var watchNamespace string
 	var agentsNamespace string
+	var minTLSVersion string
+	var cipherSuites string
 	var agentClient client.Client
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -66,6 +68,9 @@ func main() {
 		"Namespace that the controller watches to reconcile cluster-api objects. If unspecified, the controller watches for cluster-api objects across all namespaces.")
 	flag.StringVar(&agentsNamespace, "agent-namespace", "",
 		"Namespace that the controller watches to list Agents objects. If unspecified, the controller watches for Agents objects across all namespaces.")
+	flag.StringVar(&minTLSVersion, "tls-min-version", "", "Minimum TLS version supported. Currently unused.")
+	flag.StringVar(&cipherSuites, "tls-cipher-suites", "",
+		"Comma-separated list of cipher suites for the server. If omitted, the default Go cipher suites will be used. Currently unused.")
 	opts := zap.Options{
 		Development: true,
 	}
