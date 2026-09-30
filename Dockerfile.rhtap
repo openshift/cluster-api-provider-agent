@@ -6,7 +6,7 @@ COPY . .
 # Build
 RUN CGO_ENABLED=1 go build -a -o manager main.go
 
-FROM registry.redhat.io/rhel9-2-els/rhel:9.2
+FROM registry.redhat.io/rhel9-2-els/rhel:9.2-1790663884@sha256:9d1af67b0efc76e7cd113d81a16f00ee82dc9de9874a497e2e0d22fb03a60bd5
 
 ARG version=2.10
 
