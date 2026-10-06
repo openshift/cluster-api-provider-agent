@@ -17,7 +17,7 @@ require (
 	github.com/onsi/gomega v1.42.1
 	github.com/openshift/cluster-api-provider-agent/api v0.0.0-20251202202927-3ad4558809a2
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
-	github.com/openshift/hive/apis v0.0.0-20260916200615-74185d6d1ee6
+	github.com/openshift/hive/apis v0.0.0-20261002161616-a00caa79b98d
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.4
 	github.com/thoas/go-funk v0.9.3
