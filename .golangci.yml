@@ -8,6 +8,7 @@ run:
 linters:
   default: none
   enable:
+    - depguard
     - errcheck
     - govet
     - gocyclo
@@ -27,7 +28,25 @@ linters:
             - Warnf
             - Errorf
             - Fatalf
-
+    depguard:
+      rules:
+        api:
+          list-mode: strict
+          files: 
+            - "**/api/**/*.go"
+          allow:
+            - $gostd
+            - k8s.io/apimachinery/pkg/apis/meta/v1$
+            - k8s.io/apimachinery/pkg/runtime/schema$
+            - k8s.io/apimachinery/pkg/runtime/serializer/json$
+            - k8s.io/client-go/kubernetes/scheme$
+            - sigs.k8s.io/cluster-api/api/core/v1beta2$
+            - sigs.k8s.io/cluster-api/errors$
+            - sigs.k8s.io/controller-runtime/pkg/scheme$
+            - sigs.k8s.io/controller-runtime/pkg/conversion$
+            - github.com/openshift/cluster-api-provider-agent/api/v1alpha1$ 
+            - github.com/openshift/cluster-api-provider-agent/api/v1beta1$
+            - github.com/openshift/api/config/v1$
   # which dirs to skip: issues from them won't be reported;
   # can use regexp here: generated.*, regexp is applied on full path;
   # default value is empty list, but default dirs are skipped independently
@@ -39,7 +58,6 @@ linters:
       - docs
       - models
       - restapi
-      - api
 
 issues:
   uniq-by-line: true
