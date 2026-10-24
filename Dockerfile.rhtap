@@ -6,7 +6,7 @@ COPY . .
 # Build
 RUN CGO_ENABLED=1 go build -a -o manager main.go
 
-FROM registry.redhat.io/ubi9/ubi-minimal-pqc:latest@sha256:2991303dcd404cf3d252b725e51735163f100ca8dd6cd227cffdf77e5bdd0c3e
+FROM registry.redhat.io/ubi9/ubi-minimal-pqc:latest@sha256:d0fdfb1401ee754872f60c2527563671c16112080e5254139133908178700911
 
 ARG version=2.17
 
