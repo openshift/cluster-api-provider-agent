@@ -302,8 +302,8 @@ func (r *AgentClusterReconciler) createClusterDeploymentObject(agentCluster *cap
 			Name:      agentCluster.Name,
 			Namespace: agentCluster.Namespace,
 			OwnerReferences: []metav1.OwnerReference{{
-				Kind:       agentCluster.Kind,
-				APIVersion: agentCluster.APIVersion,
+				Kind:       capiproviderv1.GroupVersion.WithKind("AgentCluster").Kind,
+				APIVersion: capiproviderv1.GroupVersion.String(),
 				Name:       agentCluster.Name,
 				UID:        agentCluster.UID,
 			}},
@@ -365,7 +365,7 @@ func (r *AgentClusterReconciler) createClusterDeployment(ctx context.Context, lo
 // ensureOwnedClusterDeployment makes sure that the ClusterDeployment has its owner set to this AgentCluster
 // and that the ClusterDeployment has a label referencing this AgentCluster.
 func (r *AgentClusterReconciler) ensureOwnedClusterDeployment(ctx context.Context, agentCluster *capiproviderv1.AgentCluster, clusterDeployment *hivev1.ClusterDeployment) error {
-	alreadyOwned := clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster)
+	alreadyOwned := clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster, capiproviderv1.GroupVersion.WithKind("AgentCluster").GroupKind())
 	agentClusterRef := clusterDeployment.ObjectMeta.Labels[AgentClusterRefLabel]
 	if alreadyOwned && agentClusterRef != "" && agentClusterRef == agentCluster.Name {
 		r.Log.Infof("ClusterDeployment %s already owned by AgentCluster %s", clusterDeployment.Name, agentCluster.Name)
@@ -496,13 +496,13 @@ func (r *AgentClusterReconciler) orphanClusterDeployment(ctx context.Context, ag
 		return err
 	}
 
-	if !clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster) {
+	if !clusterutilv1.IsOwnedByObject(clusterDeployment, agentCluster, capiproviderv1.GroupVersion.WithKind("AgentCluster").GroupKind()) {
 		return nil
 	}
 
 	var newOwners []metav1.OwnerReference
 	for _, owner := range clusterDeployment.GetOwnerReferences() {
-		if owner.Kind == agentCluster.Kind && owner.Name == agentCluster.Name && owner.APIVersion == agentCluster.APIVersion && owner.UID == agentCluster.UID {
+		if owner.Kind == capiproviderv1.GroupVersion.WithKind("AgentCluster").Kind && owner.Name == agentCluster.Name && owner.APIVersion == capiproviderv1.GroupVersion.String() && owner.UID == agentCluster.UID {
 			continue
 		}
 		newOwners = append(newOwners, owner)
