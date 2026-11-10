@@ -58,6 +58,7 @@ func main() {
 	var agentsNamespace string
 	var minTLSVersion string
 	var cipherSuites string
+	var curvePreferences string
 	var agentClient client.Client
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -71,6 +72,14 @@ func main() {
 	flag.StringVar(&minTLSVersion, "tls-min-version", "", "Minimum TLS version supported. Currently unused.")
 	flag.StringVar(&cipherSuites, "tls-cipher-suites", "",
 		"Comma-separated list of cipher suites for the server. If omitted, the default Go cipher suites will be used. Currently unused.")
+	flag.StringVar(&curvePreferences, "tls-curve-preferences", "",
+		"Comma-separated list of numeric Go crypto/tls CurveID values, "+
+			"as the allowed key exchange mechanisms for the server. "+
+			"The supported values depend on the Go version used. "+
+			"See https://pkg.go.dev/crypto/tls#CurveID for values supported for each Go version. "+
+			"The order of the list is ignored, and key exchange mechanisms are chosen "+
+			"by Go from this list using an internal preference order. "+
+			"If omitted, the default Go curves will be used. Currently unused.")
 	opts := zap.Options{
 		Development: true,
 	}
